@@ -17,6 +17,7 @@ The aim of this repository is to demonstrate the capabilities of GPT-4o to analy
     - [Usage](#usage-1)
     - [Parameters](#parameters-1)
     - [Example](#example-1)
+    - [Demo](#demo)
   - [YouTube Video Downloader Script](#youtube-video-downloader-script)
     - [Usage](#usage-2)
     - [Parameters](#parameters-2)
@@ -41,7 +42,7 @@ It can take a minute to set up. If you run into problems, see [Python environmen
 
 ### Environment Configuration
 
-Create a `.env` file in the root directory of your project with the following content. You can use the provided [`.env-sample.ini`](.env-sample.ini) as a template:
+Create a `.env` file in the root directory of your project with the following content. You can use the provided [`.env-sample`](.env-sample) as a template:
 
 ```
 SYSTEM_PROMPT="You are an expert on Video Analysis. You will be shown a series of images from a video. Describe what is happening in the video, including the objects, actions, and any other relevant details. Be as specific and detailed as possible."
@@ -150,6 +151,9 @@ To analyze a YouTube video with a shot interval of 60 seconds, extracting 1 fram
 - **Maximum duration to process (seconds)**: 120
 
 Then click the "Analyze video" button to start the analysis.
+
+### Demo
+![Video Shot Analysis Demo](./videoshotanalysisdemo.gif)
 
 ## YouTube Video Downloader Script
 
