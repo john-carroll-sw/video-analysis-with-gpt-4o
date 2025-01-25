@@ -29,5 +29,8 @@ EXPOSE 8501
 # Use build argument to specify the Python script to run
 ARG PYTHON_SCRIPT
 
+# Set the default value for the Python script if not provided
+ENV PYTHON_SCRIPT=${PYTHON_SCRIPT}
+
 # Run the specified Streamlit app
-CMD ["streamlit", "run", "${PYTHON_SCRIPT}"]
+CMD ["sh", "-c", "streamlit run ${PYTHON_SCRIPT}"]

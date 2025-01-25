@@ -13,7 +13,7 @@ $AcrName = "${PrefixLower}acr"
 $AppServicePlan = "${Prefix}AppServicePlan"
 $WebAppName = "${PrefixLower}app"
 $Location = "eastus"
-$ImageName = "${PrefixLower}-demo"
+$ImageName = "${AcrName}.azurecr.io/${PrefixLower}-demo"
 $DockerImageTag = "latest"
 
 Write-Output "Starting deployment with the following parameters:"
@@ -54,13 +54,25 @@ try {
     Write-Output "Logging in to Azure Container Registry: $AcrName"
     az acr login --name $AcrName
 
+    # Debug output to verify variable values
+    Write-Output "Debug: ACR_NAME=${AcrName}"
+    Write-Output "Debug: IMAGE_NAME=${ImageName}"
+    Write-Output "Debug: DOCKER_IMAGE_TAG=${DockerImageTag}"
+    Write-Output "Debug: PYTHON_SCRIPT=${PythonScript}"
+
     # Build the Docker image
-    Write-Output "Building Docker image: ${AcrName}.azurecr.io/${ImageName}:${DockerImageTag}"
-    docker build --platform linux/amd64 --build-arg PYTHON_SCRIPT=$PythonScript -t ${AcrName}.azurecr.io/${ImageName}:${DockerImageTag} .
+    Write-Output "Building Docker image: ${ImageName}:${DockerImageTag}"
+    docker build --platform linux/amd64 --build-arg PYTHON_SCRIPT=$PythonScript -t ${ImageName}:${DockerImageTag} .
+
+    # Verify if the Docker image was built successfully
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Docker build failed. Exiting."
+        exit 1
+    }
 
     # Push the Docker image to the Azure Container Registry
-    Write-Output "Pushing Docker image to Azure Container Registry: ${AcrName}.azurecr.io/${ImageName}:${DockerImageTag}"
-    docker push ${AcrName}.azurecr.io/${ImageName}:${DockerImageTag}
+    Write-Output "Pushing Docker image to Azure Container Registry: ${ImageName}:${DockerImageTag}"
+    docker push ${ImageName}:${DockerImageTag}
 
     # The P1V3 tier (Premium v3 - P1v3) provides more CPU and memory resources for production workloads
     # Create an App Service plan
@@ -69,11 +81,11 @@ try {
 
     # Create a Web App for Containers
     Write-Output "Creating Web App for Containers: $WebAppName"
-    az webapp create --resource-group $ResourceGroup --plan $AppServicePlan --name $WebAppName --deployment-container-image-name ${AcrName}.azurecr.io/${ImageName}:${DockerImageTag}
+    az webapp create --resource-group $ResourceGroup --plan $AppServicePlan --name $WebAppName --deployment-container-image-name ${ImageName}:${DockerImageTag}
 
     # Configure the Web App to use the Azure Container Registry
-    Write-Output "Configuring Web App to use Azure Container Registry: ${AcrName}.azurecr.io/${ImageName}:${DockerImageTag}"
-    az webapp config container set --name $WebAppName --resource-group $ResourceGroup --container-image-name ${AcrName}.azurecr.io/${ImageName}:${DockerImageTag} --container-registry-url https://${AcrName}.azurecr.io
+    Write-Output "Configuring Web App to use Azure Container Registry: ${ImageName}:${DockerImageTag}"
+    az webapp config container set --name $WebAppName --resource-group $ResourceGroup --container-image-name ${ImageName}:${DockerImageTag} --container-registry-url https://${AcrName}.azurecr.io
 
     # Load environment variables from .env file
     Write-Output "Checking if .env file exists..."
@@ -91,7 +103,6 @@ try {
         Write-Error ".env file not found."
         exit 1
     }
-    
 
     # Set environment variables in Azure Web App
     Write-Output "Setting environment variables in Azure Web App: $WebAppName"
