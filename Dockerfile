@@ -26,5 +26,8 @@ COPY . .
 # Expose the port that Streamlit will run on
 EXPOSE 8501
 
-# Run the Streamlit app
-CMD ["streamlit", "run", "video_shot_analysis.py"]
+# Use build argument to specify the Python script to run
+ARG PYTHON_SCRIPT
+
+# Run the specified Streamlit app
+CMD ["streamlit", "run", "${PYTHON_SCRIPT}"]
