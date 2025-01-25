@@ -172,7 +172,7 @@ To analyze a YouTube video with a shot interval of 60 seconds, extracting 1 fram
 Then click the "Analyze video" button to start the analysis.
 
 ### Demo
-![Video Shot Analysis Demo](./videoshotanalysisdemo.gif)
+![Video Shot Analysis Demo](https://raw.githubusercontent.com/john-carroll-sw/video-analysis-with-gpt-4o/main/VideoShotAnalysisDemo.gif)
 
 ### Deployment
 
