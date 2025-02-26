@@ -326,8 +326,7 @@ def execute_video_processing(st, segment_path, system_prompt, user_prompt, tempe
         "segment": segment_num + 1,
         "start_time": start_time,
         "end_time": end_time,
-        "analysis": analysis,
-        "summary": analysis[:500]  # Create a shorter summary for context
+        "analysis": analysis
     }
     with open(analysis_filename, 'w') as f:
         json.dump(analysis_data, f, indent=4)
@@ -372,7 +371,7 @@ def chat_with_video_analysis(query, analyses, chat_history=None, temperature=0.7
             summary_prompt = "Summarize the following video analysis segments into a coherent overview:\n\n"
             for analysis in analyses:
                 summary_prompt += f"Segment {analysis['segment']} ({analysis['start_time']}-{analysis['end_time']} seconds):\n"
-                summary_prompt += f"{analysis['analysis'][:500]}...\n\n"
+                summary_prompt += f"{analysis['analysis']}...\n\n"
                 
             summary_response = aoai_client.chat.completions.create(
                 model=aoai_model_name,
@@ -972,7 +971,7 @@ elif st.session_state.current_phase == "Chat":
                         summary_prompt = "Summarize the following video analysis segments into a coherent overview:\n\n"
                         for analysis in limited_analyses:
                             summary_prompt += f"Segment {analysis['segment']} ({analysis['start_time']}-{analysis['end_time']} seconds):\n"
-                            summary_prompt += f"{analysis['analysis'][:500]}...\n\n"
+                            summary_prompt += f"{analysis['analysis']}...\n\n"
                             
                         summary_response = aoai_client.chat.completions.create(
                             model=aoai_model_name,

@@ -267,10 +267,7 @@ def handle_chat_input(prompt):
         # Get settings from session state
         temperature = st.session_state.chat_config.get("temperature", 0.7)
         summarize_first = st.session_state.chat_config.get("summarize_first", False)
-        include_transcription = st.session_state.chat_config.get("include_transcription", True)
         max_context = st.session_state.chat_config.get("max_context", len(st.session_state.analyses))
-        system_prompt = st.session_state.chat_config.get("system_prompt", CHAT_SYSTEM_PROMPT)
-        max_tokens = st.session_state.chat_config.get("max_tokens", 1000)
         
         # Make sure clients are properly initialized before use
         if not hasattr(st.session_state, 'aoai_client') or st.session_state.aoai_client is None:

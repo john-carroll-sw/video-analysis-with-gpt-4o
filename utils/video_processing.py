@@ -175,7 +175,6 @@ def execute_video_processing(st, segment_path, system_prompt, user_prompt, tempe
         "start_time": start_time,
         "end_time": end_time,
         "analysis": analysis,
-        "summary": analysis[:500]  # Create a shorter summary for context
     }
     with open(analysis_filename, 'w') as f:
         json.dump(analysis_data, f, indent=4)

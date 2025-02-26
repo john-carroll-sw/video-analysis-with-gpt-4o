@@ -1,6 +1,7 @@
 import json
 import streamlit as st
 import logging
+from config import CHAT_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ def analyze_video(base64frames, system_prompt, user_prompt, transcription, previ
         logger.error(f'ERROR in analyze_video: {ex}')
         return f'ERROR: {ex}'
 
-def chat_with_video_analysis(query, analyses, chat_history=None, temperature=0.7, summarize_first=False):
+def chat_with_video_analysis(query, analyses, chat_history=None, temperature=0.7, summarize_first=True):
     """Use GPT-4o to answer questions about the video using the collected analyses."""
     try:
         # Construct context from analyses
@@ -53,7 +54,7 @@ def chat_with_video_analysis(query, analyses, chat_history=None, temperature=0.7
             summary_prompt = "Summarize the following video analysis segments into a coherent overview:\n\n"
             for analysis in analyses:
                 summary_prompt += f"Segment {analysis['segment']} ({analysis['start_time']}-{analysis['end_time']} seconds):\n"
-                summary_prompt += f"{analysis['analysis'][:500]}...\n\n"
+                summary_prompt += f"{analysis['analysis']}...\n\n"
                 
             summary_response = st.session_state.aoai_client.chat.completions.create(
                 model=st.session_state.aoai_model_name,
@@ -62,7 +63,7 @@ def chat_with_video_analysis(query, analyses, chat_history=None, temperature=0.7
                     {"role": "user", "content": summary_prompt}
                 ],
                 temperature=temperature,
-                max_tokens=500
+                max_tokens=1000
             )
             
             summary_json = json.loads(summary_response.model_dump_json())
@@ -75,7 +76,7 @@ def chat_with_video_analysis(query, analyses, chat_history=None, temperature=0.7
 
         # Construct messages array with chat history
         messages = [
-            {"role": "system", "content": "You are an assistant that answers questions about a video based on its analysis. Use the provided analysis context to give accurate and relevant answers. Maintain context from the ongoing conversation."},
+            {"role": "system", "content": st.session_state.chat_config.get("chat_system_prompt", CHAT_SYSTEM_PROMPT)},
             {"role": "user", "content": f"Here is the video analysis to reference:\n{context}"}
         ]
 

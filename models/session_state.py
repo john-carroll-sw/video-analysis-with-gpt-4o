@@ -1,6 +1,6 @@
 import streamlit as st
 import os
-from config import DEFAULT_SHOT_INTERVAL, DEFAULT_FRAMES_PER_SECOND, RESIZE_OF_FRAMES, DEFAULT_TEMPERATURE, SYSTEM_PROMPT, USER_PROMPT
+from config import DEFAULT_SHOT_INTERVAL, DEFAULT_FRAMES_PER_SECOND, RESIZE_OF_FRAMES, DEFAULT_TEMPERATURE, SYSTEM_PROMPT, USER_PROMPT, CHAT_SYSTEM_PROMPT
 
 def initialize_session_state():
     """Initialize all session state variables."""
@@ -42,6 +42,7 @@ def initialize_session_state():
             "temperature": DEFAULT_TEMPERATURE,
             "system_prompt": SYSTEM_PROMPT,
             "user_prompt": USER_PROMPT,
+            "chat_system_prompt": CHAT_SYSTEM_PROMPT,
             "enable_range": False,
             "start_time": 0,
             "end_time": 0
