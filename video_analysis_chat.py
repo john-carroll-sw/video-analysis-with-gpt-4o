@@ -73,6 +73,29 @@ if "chat_config" not in st.session_state:
         "temperature": 0.7,
         "summarize_first": False
     }
+if "api_config" not in st.session_state:
+    st.session_state.api_config = {
+        "azure_endpoint": os.environ.get("AZURE_OPENAI_ENDPOINT", ""),
+        "azure_api_key": os.environ.get("AZURE_OPENAI_API_KEY", ""),
+        "azure_api_version": os.environ.get("AZURE_OPENAI_API_VERSION", ""),
+        "azure_deployment": os.environ.get("AZURE_OPENAI_DEPLOYMENT_NAME", ""),
+        "whisper_endpoint": os.environ.get("WHISPER_ENDPOINT", ""),
+        "whisper_api_key": os.environ.get("WHISPER_API_KEY", ""),
+        "whisper_api_version": os.environ.get("WHISPER_API_VERSION", ""),
+        "whisper_deployment": os.environ.get("WHISPER_DEPLOYMENT_NAME", "")
+    }
+
+# Helper function to validate Azure endpoint
+def validate_azure_endpoint(endpoint):
+    if not endpoint:
+        return False
+    if not endpoint.startswith("https://"):
+        return False
+    if not endpoint.endswith(".openai.azure.com/"):
+        # Add trailing slash if missing
+        if endpoint.endswith(".openai.azure.com"):
+            return endpoint + "/"
+    return endpoint
 
 # Configure API clients
 aoai_endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]
@@ -99,58 +122,6 @@ whisper_client = AzureOpenAI(
     azure_endpoint=whisper_endpoint,
     api_key=whisper_apikey
 )
-
-# # Add custom CSS for styling
-# st.markdown("""
-# <style>
-#     /* Navigation tabs styling */
-#     .stButton > button {
-#         border: none;
-#         background-color: transparent;
-#         font-size: 16px;
-#         font-weight: bold;
-#     }
-    
-#     .phase-active {
-#         border-bottom: 4px solid #ff4b4b !important;
-#         border-radius: 0px !important;
-#         color: #ff4b4b !important;
-#     }
-    
-#     .phase-inactive {
-#         border-bottom: 1px solid #ddd;
-#         color: #888;
-#     }
-
-#     /* Chat container styling */
-#     .chat-container {
-#         display: flex;
-#         flex-direction: column;
-#         height: 600px;
-#         border: 1px solid #ddd;
-#         border-radius: 8px;
-#         overflow: hidden;
-#     }
-    
-#     .messages-container {
-#         flex-grow: 1;
-#         overflow-y: auto;
-#         padding: 15px;
-#     }
-    
-#     .chat-input-container {
-#         padding: 10px;
-#         border-top: 1px solid #ddd;
-#         background-color: #f9f9f9;
-#     }
-    
-#     /* Ensure the sidebar doesn't create horizontal scrolling */
-#     .main .block-container {
-#         max-width: 100%;
-#         padding: 1rem 1rem;
-#     }
-# </style>
-# """, unsafe_allow_html=True)
 
 # Main video processing functions
 def process_video(video_path, frames_per_second=DEFAULT_FRAMES_PER_SECOND, resize=RESIZE_OF_FRAMES, output_dir=''):
@@ -726,7 +697,7 @@ elif st.session_state.current_phase == "Chat":
         
         st.session_state.chat_config["summarize_first"] = st.checkbox(
             "Generate summary first",
-            value=st.session_state.chat_config.get("summarize_first", False),
+            value=st.session_state.chat_config.get("summarize_first", True),
             help="Create a high-level summary of all segments before answering questions"
         )
         
@@ -757,10 +728,9 @@ elif st.session_state.current_phase == "Chat":
                 st.session_state.current_phase = "Analyze" 
                 st.rerun()
         
-        # Expert mode toggle
         st.markdown("---")
         expert_mode = st.toggle(
-            "Expert Mode", 
+            "Advanced Options", 
             value=st.session_state.chat_config.get("expert_mode", False),
             help="Show advanced options and technical details"
         )
@@ -768,8 +738,6 @@ elif st.session_state.current_phase == "Chat":
         
         # Show additional expert options if enabled
         if expert_mode:
-            st.subheader("Advanced Options")
-            
             # System prompt customization
             system_prompt = st.text_area(
                 "System Prompt",
@@ -787,11 +755,142 @@ elif st.session_state.current_phase == "Chat":
                 step=50
             )
             
+            # API Configuration Section
+            st.subheader("API Configuration")
+            
+            # OpenAI API Configuration Section
+            with st.expander("Azure OpenAI API Settings", expanded=False):
+                # Azure OpenAI settings
+                azure_api_key = st.text_input(
+                    "Azure OpenAI API Key", 
+                    type="password",
+                    value=st.session_state.api_config["azure_api_key"],
+                    placeholder="your-azure-openai-api-key"
+                )
+                st.session_state.api_config["azure_api_key"] = azure_api_key
+                
+                azure_endpoint = st.text_input(
+                    "Azure OpenAI Endpoint", 
+                    value=st.session_state.api_config["azure_endpoint"],
+                    placeholder="https://your-azure-openai-endpoint.openai.azure.com/"
+                )
+                st.session_state.api_config["azure_endpoint"] = azure_endpoint
+                
+                azure_deployment = st.text_input(
+                    "Azure Deployment Name", 
+                    value=st.session_state.api_config["azure_deployment"],
+                    placeholder="gpt-4o",
+                    help="This is your deployment name, e.g., gpt-4o"
+                )
+                st.session_state.api_config["azure_deployment"] = azure_deployment
+                
+                azure_api_version = st.text_input(
+                    "Azure API Version", 
+                    value=st.session_state.api_config["azure_api_version"],
+                    placeholder="2024-08-01-preview"
+                )
+                st.session_state.api_config["azure_api_version"] = azure_api_version
+                
+                st.markdown("[Get Azure OpenAI access](https://azure.microsoft.com/en-us/products/cognitive-services/openai-service)")
+            
+            # Whisper API Configuration Section
+            with st.expander("Azure Whisper API Settings", expanded=False):
+                # Whisper settings
+                whisper_api_key = st.text_input(
+                    "Whisper API Key", 
+                    type="password",
+                    value=st.session_state.api_config["whisper_api_key"],
+                    placeholder="your-whisper-api-key"
+                )
+                st.session_state.api_config["whisper_api_key"] = whisper_api_key
+                
+                whisper_endpoint = st.text_input(
+                    "Whisper Endpoint", 
+                    value=st.session_state.api_config["whisper_endpoint"],
+                    placeholder="https://your-whisper-endpoint.openai.azure.com/"
+                )
+                st.session_state.api_config["whisper_endpoint"] = whisper_endpoint
+                
+                whisper_deployment = st.text_input(
+                    "Whisper Deployment Name", 
+                    value=st.session_state.api_config["whisper_deployment"],
+                    placeholder="whisper",
+                    help="This is your whisper deployment name"
+                )
+                st.session_state.api_config["whisper_deployment"] = whisper_deployment
+                
+                whisper_api_version = st.text_input(
+                    "Whisper API Version", 
+                    value=st.session_state.api_config["whisper_api_version"],
+                    placeholder="2023-09-01-preview"
+                )
+                st.session_state.api_config["whisper_api_version"] = whisper_api_version
+            
+            # Apply Changes button
+            if st.button("Apply API Changes", use_container_width=True):
+                
+                # Get values from session state
+                azure_endpoint = st.session_state.api_config["azure_endpoint"]
+                azure_api_key = st.session_state.api_config["azure_api_key"]
+                azure_deployment = st.session_state.api_config["azure_deployment"]
+                azure_api_version = st.session_state.api_config["azure_api_version"]
+                
+                whisper_endpoint = st.session_state.api_config["whisper_endpoint"]
+                whisper_api_key = st.session_state.api_config["whisper_api_key"]
+                whisper_deployment = st.session_state.api_config["whisper_deployment"]
+                whisper_api_version = st.session_state.api_config["whisper_api_version"]
+                
+                # Validate endpoints
+                valid_azure = validate_azure_endpoint(azure_endpoint)
+                valid_whisper = validate_azure_endpoint(whisper_endpoint)
+                
+                if not valid_azure:
+                    st.error("Invalid Azure OpenAI endpoint format. Should be: https://YOUR_RESOURCE_NAME.openai.azure.com/")
+                if not valid_whisper:
+                    st.error("Invalid Whisper endpoint format. Should be: https://YOUR_RESOURCE_NAME.openai.azure.com/")
+                
+                if valid_azure and azure_api_key and azure_deployment and azure_api_version:
+                    # Update the Azure OpenAI client
+                    try:
+                        aoai_client = AzureOpenAI(
+                            azure_deployment=azure_deployment,
+                            api_version=azure_api_version,
+                            azure_endpoint=azure_endpoint,
+                            api_key=azure_api_key
+                        )
+                        st.success("Azure OpenAI API settings updated!")
+                    except Exception as e:
+                        st.error(f"Failed to update Azure OpenAI client: {str(e)}")
+                
+                if valid_whisper and whisper_api_key and whisper_deployment and whisper_api_version:
+                    # Update the Whisper client
+                    try:
+                        whisper_client = AzureOpenAI(
+                            api_version=whisper_api_version,
+                            azure_endpoint=whisper_endpoint,
+                            api_key=whisper_api_key
+                        )
+                        st.success("Whisper API settings updated!")
+                    except Exception as e:
+                        st.error(f"Failed to update Whisper client: {str(e)}")
+            
+            # Debug button to check environment variables
+            if st.button("Debug API Settings", use_container_width=True):
+                st.write("Current API Configuration:")
+                for key, value in st.session_state.api_config.items():
+                    if value and "api_key" in key:
+                        # Mask API keys for security
+                        masked = value[:4] + "..." + value[-4:] if len(value) > 8 else "***"
+                        st.write(f"{key}: {masked}")
+                    else:
+                        st.write(f"{key}: {value}")
+            
             # Debug information
-            if st.checkbox("Show Debug Info", value=False):
+            if st.checkbox("Show Context Statistics", value=False):
                 st.subheader("Context Statistics")
                 
                 # Count total tokens in context
+                max_context = st.session_state.chat_config.get("max_context", len(st.session_state.analyses))
                 context_size = sum(len(analysis.get("analysis", "").split()) for analysis in st.session_state.analyses[:max_context])
                 st.write(f"Analysis segments: {len(st.session_state.analyses[:max_context])}")
                 st.write(f"Approximate context size: ~{context_size} words")
@@ -803,11 +902,6 @@ elif st.session_state.current_phase == "Chat":
                         last_msg = next((m for m in reversed(st.session_state.chat_history) if m["role"] == "user"), None)
                         if last_msg:
                             st.write(f"Latest user query: '{last_msg['content'][:50]}...' ({len(last_msg['content'].split())} words)")
-                
-                # API details
-                st.subheader("API Configuration")
-                st.write(f"API Endpoint: {aoai_endpoint[:20]}...")
-                st.write(f"Model deployment: {aoai_model_name}")
     
     # Main chat container
     st.header("💬 Chat about the video analysis")
@@ -859,77 +953,84 @@ elif st.session_state.current_phase == "Chat":
                 "You are an assistant that answers questions about a video based on its analysis. Use the provided analysis context to give accurate and relevant answers. Maintain context from the ongoing conversation.")
             max_tokens = st.session_state.chat_config.get("max_tokens", 1000)
             
-            # Limit context to max_context segments
-            limited_analyses = st.session_state.analyses[:max_context] if max_context < len(st.session_state.analyses) else st.session_state.analyses
-            
-            # Construct context from analyses
-            context = "Video Analysis Context:\n\n"
-            
-            # Generate summary if enabled and multiple segments
-            if summarize_first and len(limited_analyses) > 1:
-                summary_prompt = "Summarize the following video analysis segments into a coherent overview:\n\n"
-                for analysis in limited_analyses:
-                    summary_prompt += f"Segment {analysis['segment']} ({analysis['start_time']}-{analysis['end_time']} seconds):\n"
-                    summary_prompt += f"{analysis['analysis'][:500]}...\n\n"
-                    
-                summary_response = aoai_client.chat.completions.create(
-                    model=aoai_model_name,
-                    messages=[
-                        {"role": "system", "content": "Create a concise summary of the video based on these segment analyses."},
-                        {"role": "user", "content": summary_prompt}
-                    ],
-                    temperature=temperature,
-                    max_tokens=500
-                )
-                
-                context += "Overall Summary:\n" + json.loads(summary_response.model_dump_json())['choices'][0]['message']['content'] + "\n\n"
-
-            # Add individual segment analyses
-            for analysis in limited_analyses:
-                context += f"Segment {analysis['segment']} ({analysis['start_time']}-{analysis['end_time']} seconds):\n"
-                context += f"{analysis['analysis']}\n\n"
-                
-                # Include transcriptions if enabled and available
-                if include_transcription and "transcription" in analysis and analysis["transcription"]:
-                    context += f"Transcription for segment {analysis['segment']}: {analysis['transcription']}\n\n"
-
-            # Construct messages array with system prompt, context, and chat history
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"Here is the video analysis to reference:\n{context}"}
-            ]
-
-            # Add chat history if it exists
-            if len(st.session_state.chat_history) > 0:
-                # Convert to the format expected by the API
-                api_messages = []
-                for msg in st.session_state.chat_history:
-                    if msg["role"] in ["user", "assistant"]:
-                        api_messages.append({"role": msg["role"], "content": msg["content"]})
-                messages.extend(api_messages)
-
-            # Add current query
-            messages.append({"role": "user", "content": prompt})
-            
-            try:
-                # Get streaming response
-                for chunk in aoai_client.chat.completions.create(
-                    model=aoai_model_name,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    stream=True
-                ):
-                    if hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content is not None:
-                        full_response += chunk.choices[0].delta.content
-                        message_placeholder.markdown(full_response + "▌")
-                
-                message_placeholder.markdown(full_response)
-            except Exception as e:
-                error_msg = f"Error generating response: {str(e)}"
+            # Make sure clients are properly initialized before use
+            if 'aoai_client' not in globals() or aoai_client is None:
+                error_msg = "Azure OpenAI client is not properly configured. Please check API settings."
                 message_placeholder.error(error_msg)
+                logger.error("Azure OpenAI client is not initialized")
                 full_response = error_msg
-                logger.error(f"Chat error: {str(e)}")
+            else:
+                try:
+                    # Limit context to max_context segments
+                    limited_analyses = st.session_state.analyses[:max_context] if max_context < len(st.session_state.analyses) else st.session_state.analyses
+                    
+                    # Construct context from analyses
+                    context = "Video Analysis Context:\n\n"
+                    
+                    # Generate summary if enabled and multiple segments
+                    if summarize_first and len(limited_analyses) > 1:
+                        summary_prompt = "Summarize the following video analysis segments into a coherent overview:\n\n"
+                        for analysis in limited_analyses:
+                            summary_prompt += f"Segment {analysis['segment']} ({analysis['start_time']}-{analysis['end_time']} seconds):\n"
+                            summary_prompt += f"{analysis['analysis'][:500]}...\n\n"
+                            
+                        summary_response = aoai_client.chat.completions.create(
+                            model=aoai_model_name,
+                            messages=[
+                                {"role": "system", "content": "Create a concise summary of the video based on these segment analyses."},
+                                {"role": "user", "content": summary_prompt}
+                            ],
+                            temperature=temperature,
+                            max_tokens=500
+                        )
+                        
+                        context += "Overall Summary:\n" + json.loads(summary_response.model_dump_json())['choices'][0]['message']['content'] + "\n\n"
+
+                    # Add individual segment analyses
+                    for analysis in limited_analyses:
+                        context += f"Segment {analysis['segment']} ({analysis['start_time']}-{analysis['end_time']} seconds):\n"
+                        context += f"{analysis['analysis']}\n\n"
+                        
+                        # Include transcriptions if enabled and available
+                        if include_transcription and "transcription" in analysis and analysis["transcription"]:
+                            context += f"Transcription for segment {analysis['segment']}: {analysis['transcription']}\n\n"
+
+                    # Construct messages array with system prompt, context, and chat history
+                    messages = [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"Here is the video analysis to reference:\n{context}"}
+                    ]
+
+                    # Add chat history if it exists
+                    if len(st.session_state.chat_history) > 0:
+                        # Convert to the format expected by the API
+                        api_messages = []
+                        for msg in st.session_state.chat_history:
+                            if msg["role"] in ["user", "assistant"]:
+                                api_messages.append({"role": msg["role"], "content": msg["content"]})
+                        messages.extend(api_messages)
+
+                    # Add current query
+                    messages.append({"role": "user", "content": prompt})
+                    
+                    # Get streaming response
+                    for chunk in aoai_client.chat.completions.create(
+                        model=aoai_model_name,
+                        messages=messages,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        stream=True
+                    ):
+                        if hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content is not None:
+                            full_response += chunk.choices[0].delta.content
+                            message_placeholder.markdown(full_response + "▌")
+                    
+                    message_placeholder.markdown(full_response)
+                except Exception as e:
+                    error_msg = f"Error generating response: {str(e)}"
+                    message_placeholder.error(error_msg)
+                    full_response = error_msg
+                    logger.error(f"Chat error: {str(e)}")
             
         # Update chat history
         st.session_state.chat_history.extend([
