@@ -48,7 +48,7 @@ def main():
     # Define tab titles and corresponding phases
     tabs = [
         ("Upload", "Upload"),
-        ("Process", "Analyze"),
+        ("Analyze", "Analyze"),
         ("Chat", "Chat")
     ]
     
