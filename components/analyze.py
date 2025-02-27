@@ -7,6 +7,7 @@ from yt_dlp.utils import download_range_func
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 from moviepy.editor import VideoFileClip
 from utils.video_processing import execute_video_processing, load_all_analyses
+from utils.analysis_cache import register_video_analysis, register_url_analysis
 import logging
 
 logger = logging.getLogger(__name__)
@@ -169,6 +170,9 @@ def process_uploaded_file(video_file):
         st.session_state.analyses = analyses
         st.session_state.show_chat = True
         
+        # Register this video in the cache system for future retrieval
+        register_video_analysis(video_file, video_dir)
+        
         st.success(f"Processing complete! Analyzed {segment_num} segments.")
     
     except Exception as ex:
@@ -301,6 +305,11 @@ def process_video_url(url):
         analyses = load_all_analyses(analysis_subdir)
         st.session_state.analyses = analyses
         st.session_state.show_chat = True
+        
+        # Register this URL in the cache system for future retrieval
+        start_time = st.session_state.config["start_time"] if st.session_state.config["enable_range"] else 0
+        end_time = st.session_state.config["end_time"] if st.session_state.config["enable_range"] else 0
+        register_url_analysis(url, video_dir, start_time, end_time)
         
         st.success(f"Processing complete! Analyzed {segment_num} segments.")
     

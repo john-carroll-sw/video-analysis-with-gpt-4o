@@ -36,9 +36,9 @@ def main():
     
     # Define tab titles and corresponding phases
     tabs = [
-        ("Upload & Configure", "Upload"),
-        ("Process & Analyze", "Analyze"),
-        ("Chat & Insights", "Chat")
+        ("Upload", "Upload"),
+        ("Process", "Analyze"),
+        ("Chat", "Chat")
     ]
     
     # Create custom tabs using columns and buttons

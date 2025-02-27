@@ -1,6 +1,8 @@
 import streamlit as st
 import os
 from config import VIDEO_ANALYSIS_SYSTEM_PROMPT, VIDEO_ANALYSIS_USER_PROMPT
+from utils.analysis_cache import check_video_analyzed, check_url_analyzed, load_previous_analysis
+from utils.video_processing import load_all_analyses
 
 def show_upload_page():
     """Display the upload and configuration page."""
@@ -10,6 +12,10 @@ def show_upload_page():
         st.session_state.file_uploaded_success = False
     if "url_entered_success" not in st.session_state:
         st.session_state.url_entered_success = False
+    if "previous_analysis_path" not in st.session_state:
+        st.session_state.previous_analysis_path = None
+    if "use_previous_analysis" not in st.session_state:
+        st.session_state.use_previous_analysis = False
     
     # Show sidebar configuration
     with st.sidebar:
@@ -128,19 +134,66 @@ def show_upload_page():
         
         # When a file is uploaded, store it in session_state and set success flag
         if uploaded_file is not None:
-            st.session_state.video_file = uploaded_file
-            st.session_state.video_url = ""
-            st.session_state.file_uploaded_success = True
+            # Check if we've analyzed this video before
+            previous_analysis_path = check_video_analyzed(uploaded_file)
             
-            # Show the video and success message
+            if previous_analysis_path:
+                st.session_state.previous_analysis_path = previous_analysis_path
+                
+                # UI to let the user decide to use previous analysis or re-analyze
+                st.info(f"This video has been analyzed before. Do you want to use the previous analysis?")
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("Load Previous Analysis", key="load_previous", use_container_width=True):
+                        # Load previous analysis
+                        previous_analyses = load_previous_analysis(previous_analysis_path)
+                        
+                        # Set the analyses in session state
+                        st.session_state.analyses = previous_analyses
+                        
+                        # Also set current_analyses to make them visible in the analyze phase
+                        st.session_state.current_analyses = []
+                        for analysis in previous_analyses:
+                            # Format data to match current_analyses structure
+                            st.session_state.current_analyses.append({
+                                "segment": analysis.get("segment", 0),
+                                "start_time": analysis.get("start_time", 0),
+                                "end_time": analysis.get("end_time", 0),
+                                "analysis": analysis.get("analysis", ""),
+                                "transcription": analysis.get("transcription", None)
+                            })
+                        
+                        st.session_state.use_previous_analysis = True
+                        st.session_state.current_phase = "Analyze"
+                        st.rerun()
+                
+                with col2:
+                    if st.button("Re-Analyze Video", key="re_analyze", use_container_width=True):
+                        # Set flag to re-analyze
+                        st.session_state.use_previous_analysis = False
+                        # Continue with normal upload flow
+                        st.session_state.video_file = uploaded_file
+                        st.session_state.video_url = ""
+                        st.session_state.file_uploaded_success = True
+            else:
+                # Normal upload flow for new videos
+                st.session_state.video_file = uploaded_file
+                st.session_state.video_url = ""
+                st.session_state.file_uploaded_success = True
+                st.session_state.previous_analysis_path = None
+            
+            # Show the video
             st.video(uploaded_file)
             st.success(f"File '{uploaded_file.name}' uploaded successfully!")
+        
         # If returning to this tab with a previously uploaded file
         elif st.session_state.video_file is not None and st.session_state.file_uploaded_success:
             # Re-display the video and success message for the previously uploaded file
             st.video(st.session_state.video_file)
             st.success(f"File '{st.session_state.video_file.name}' uploaded successfully!")
-    else:
+    
+    else:  # URL input section
         # For URL input, we need a consistent key and to preserve the entered value
         if "url_input" not in st.session_state:
             st.session_state.url_input = "https://www.youtube.com/watch?v=Y6kHpAeIr4c"
@@ -149,9 +202,56 @@ def show_upload_page():
         st.session_state.url_input = url  # Store the current value
         
         if url != "":
-            st.session_state.video_url = url
-            st.session_state.video_file = None
-            st.session_state.url_entered_success = True
+            # Check if we've analyzed this URL before
+            start_time = st.session_state.config["start_time"] if st.session_state.config["enable_range"] else 0
+            end_time = st.session_state.config["end_time"] if st.session_state.config["enable_range"] else 0
+            previous_analysis_path = check_url_analyzed(url, start_time, end_time)
+            
+            if previous_analysis_path:
+                st.session_state.previous_analysis_path = previous_analysis_path
+                
+                # UI to let the user decide to use previous analysis or re-analyze
+                st.info(f"This video URL has been analyzed before. Do you want to use the previous analysis?")
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("Load Previous Analysis", key="load_previous_url", use_container_width=True):
+                        # Load previous analysis
+                        previous_analyses = load_previous_analysis(previous_analysis_path)
+                        
+                        # Set the analyses in session state
+                        st.session_state.analyses = previous_analyses
+                        
+                        # Also set current_analyses to make them visible in the analyze phase
+                        st.session_state.current_analyses = []
+                        for analysis in previous_analyses:
+                            # Format data to match current_analyses structure
+                            st.session_state.current_analyses.append({
+                                "segment": analysis.get("segment", 0),
+                                "start_time": analysis.get("start_time", 0),
+                                "end_time": analysis.get("end_time", 0),
+                                "analysis": analysis.get("analysis", ""),
+                                "transcription": analysis.get("transcription", None)
+                            })
+                        
+                        st.session_state.use_previous_analysis = True
+                        st.session_state.current_phase = "Analyze"
+                        st.rerun()
+                
+                with col2:
+                    if st.button("Re-Analyze Video", key="re_analyze_url", use_container_width=True):
+                        # Set flag to re-analyze
+                        st.session_state.use_previous_analysis = False
+                        # Continue with normal URL flow
+                        st.session_state.video_url = url
+                        st.session_state.video_file = None
+                        st.session_state.url_entered_success = True
+            else:
+                # Normal URL flow for new videos
+                st.session_state.video_url = url
+                st.session_state.video_file = None
+                st.session_state.url_entered_success = True
+                st.session_state.previous_analysis_path = None
             
             # Show the video and success message
             st.video(url)
@@ -159,6 +259,7 @@ def show_upload_page():
     
     # Continue button - only enable if file is uploaded or URL is entered
     if st.session_state.video_file is not None or st.session_state.video_url != "":
-        if st.button("Continue to Analysis", type="primary", use_container_width=True):
-            st.session_state.current_phase = "Analyze"
-            st.rerun()
+        if not st.session_state.use_previous_analysis:  # Only show if not using previous analysis
+            if st.button("Continue to Analysis", type="primary", use_container_width=True):
+                st.session_state.current_phase = "Analyze"
+                st.rerun()
