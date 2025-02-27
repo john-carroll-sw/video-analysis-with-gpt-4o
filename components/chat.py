@@ -81,12 +81,12 @@ def show_chat_page():
         # Show additional expert options if enabled
         if expert_mode:
             # System prompt customization
-            system_prompt = st.text_area(
+            chat_system_prompt = st.text_area(
                 "System Prompt",
-                value=st.session_state.chat_config.get("system_prompt", CHAT_SYSTEM_PROMPT),
+                value=st.session_state.chat_config.get("chat_system_prompt", CHAT_SYSTEM_PROMPT),
                 height=100
             )
-            st.session_state.chat_config["system_prompt"] = system_prompt
+            st.session_state.chat_config["chat_system_prompt"] = chat_system_prompt
             
             # Model parameters
             st.session_state.chat_config["max_tokens"] = st.number_input(

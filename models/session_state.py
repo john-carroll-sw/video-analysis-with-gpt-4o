@@ -1,6 +1,6 @@
 import streamlit as st
 import os
-from config import DEFAULT_SHOT_INTERVAL, DEFAULT_FRAMES_PER_SECOND, RESIZE_OF_FRAMES, DEFAULT_TEMPERATURE, SYSTEM_PROMPT, USER_PROMPT, CHAT_SYSTEM_PROMPT
+from config import DEFAULT_SEGMENT_INTERVAL, DEFAULT_FRAMES_PER_SECOND, RESIZE_OF_FRAMES, DEFAULT_TEMPERATURE, VIDEO_ANALYSIS_SYSTEM_PROMPT, VIDEO_ANALYSIS_USER_PROMPT, CHAT_SYSTEM_PROMPT
 
 def initialize_session_state():
     """Initialize all session state variables."""
@@ -35,13 +35,13 @@ def initialize_session_state():
         st.session_state.config = {
             "audio_transcription": True,
             "show_transcription": True,
-            "shot_interval": DEFAULT_SHOT_INTERVAL,
+            "segment_interval": DEFAULT_SEGMENT_INTERVAL,
             "frames_per_second": float(DEFAULT_FRAMES_PER_SECOND),
             "resize": RESIZE_OF_FRAMES,
             "save_frames": True,
             "temperature": DEFAULT_TEMPERATURE,
-            "system_prompt": SYSTEM_PROMPT,
-            "user_prompt": USER_PROMPT,
+            "video_analysis_system_prompt": VIDEO_ANALYSIS_SYSTEM_PROMPT,
+            "video_analysis_user_prompt": VIDEO_ANALYSIS_USER_PROMPT,
             "chat_system_prompt": CHAT_SYSTEM_PROMPT,
             "enable_range": False,
             "start_time": 0,

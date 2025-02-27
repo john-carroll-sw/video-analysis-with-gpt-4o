@@ -1,6 +1,6 @@
 import streamlit as st
 import os
-from config import SYSTEM_PROMPT, USER_PROMPT
+from config import VIDEO_ANALYSIS_SYSTEM_PROMPT, VIDEO_ANALYSIS_USER_PROMPT
 
 def show_upload_page():
     """Display the upload and configuration page."""
@@ -38,10 +38,10 @@ def show_upload_page():
             )
         
         # Video segmentation and processing options
-        st.session_state.config["shot_interval"] = int(st.number_input(
-            'Shot interval (seconds)', 
+        st.session_state.config["segment_interval"] = int(st.number_input(
+            'Segment interval (seconds)', 
             min_value=1, 
-            value=int(st.session_state.config["shot_interval"]),
+            value=int(st.session_state.config["segment_interval"]),
             help="Split the video into segments of this length in seconds for analysis"
         ))
         
@@ -79,16 +79,16 @@ def show_upload_page():
         )
         
         # AI prompts
-        st.session_state.config["system_prompt"] = st.text_area(
+        st.session_state.config["video_analysis_system_prompt"] = st.text_area(
             'System Prompt', 
-            value=st.session_state.config["system_prompt"],
+            value=st.session_state.config["video_analysis_system_prompt"],
             height=100,
             help="Instructions for the AI on how to analyze the video. Defines the AI's role and approach"
         )
         
-        st.session_state.config["user_prompt"] = st.text_area(
+        st.session_state.config["video_analysis_user_prompt"] = st.text_area(
             'User Prompt', 
-            value=st.session_state.config["user_prompt"],
+            value=st.session_state.config["video_analysis_user_prompt"],
             help="The specific request/question for the AI about the video frames"
         )
         
