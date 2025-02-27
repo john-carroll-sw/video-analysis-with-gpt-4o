@@ -9,14 +9,26 @@ from moviepy.editor import VideoFileClip
 from utils.video_processing import execute_video_processing, load_all_analyses
 from utils.analysis_cache import register_video_analysis, register_url_analysis
 import logging
+import re  # Add this import for regex handling
+from utils.logging_utils import log_session_state, TimerLog
 
-logger = logging.getLogger(__name__)
+# Set up logger for this component
+logger = logging.getLogger('analyze')
 
 def show_analyze_page():
     """Display the analysis page."""
+    logger.info("Rendering analyze page")
+    
+    # Log current session state
+    log_session_state(logger, st.session_state, "ANALYZE: ")
+    logger.info(f"Processing mode: {st.session_state.file_or_url}")
+    
+    # Add a prominent debug/fix panel right at the top of the main area
+    # ... existing code ...
     
     # Minimal sidebar for this phase
     with st.sidebar:
+        logger.debug("Rendering sidebar")
         st.info("Video Analysis Results. You can view the detailed analysis in the main panel.")
         
         # Add button to expand/collapse all segments
@@ -42,7 +54,9 @@ def show_analyze_page():
     st.header("Video Processing & Analysis")
     
     # Always show previously processed analyses to keep them visible
+    logger.debug(f"Number of analyses to display: {len(st.session_state.current_analyses)}")
     if st.session_state.current_analyses:
+        logger.debug("Displaying existing analyses")
         # Create container to display all analyses
         analyses_display_container = st.container()
         
@@ -78,32 +92,57 @@ def show_analyze_page():
     
     # Check if we need to start processing
     if len(st.session_state.current_analyses) == 0:
+        logger.info("No analyses found, initiating processing")
         # We need to process the video
         process_container = st.container()
         
         with process_container:
-            st.info("Starting video analysis process...")
+            st.info(f"Starting video analysis process using mode: {st.session_state.file_or_url}")
+            logger.info(f"Starting video analysis with mode: {st.session_state.file_or_url}")
+            
+            # Add very explicit debug info right before processing
+            processing_details = {
+                "mode": st.session_state.file_or_url,
+                "has_file": st.session_state.video_file is not None,
+                "has_url": st.session_state.video_url != "",
+                "file_name": st.session_state.video_file.name if st.session_state.video_file else None,
+                "url": st.session_state.video_url,
+            }
+            logger.info(f"Processing details: {processing_details}")
             
             # Clear previous analyses before starting new analysis
             st.session_state.current_analyses = []
             
             # Process either file or URL based on what was provided
             if st.session_state.file_or_url == "File" and st.session_state.video_file is not None:
-                process_uploaded_file(st.session_state.video_file)
+                logger.info(f"Processing file: {st.session_state.video_file.name}")
+                st.write("🔄 Processing file...")
+                with TimerLog(logger, f"Processing file {st.session_state.video_file.name}"):
+                    process_uploaded_file(st.session_state.video_file)
             elif st.session_state.file_or_url == "URL" and st.session_state.video_url != "":
-                process_video_url(st.session_state.video_url)
+                logger.info(f"Processing URL: {st.session_state.video_url}")
+                st.write("🔄 Processing URL...")
+                with TimerLog(logger, f"Processing URL {st.session_state.video_url}"):
+                    process_video_url(st.session_state.video_url)
+            else:
+                error_msg = f"Cannot process - invalid mode {st.session_state.file_or_url} or missing content"
+                logger.error(error_msg)
+                st.error(error_msg)
     
     # Show continue button if we have analysis results
     if len(st.session_state.current_analyses) > 0:
         if st.button("Continue to Chat", type="primary", use_container_width=True):
+            logger.info("User clicked Continue to Chat button")
             st.session_state.current_phase = "Chat"
             st.rerun()
 
 def process_uploaded_file(video_file):
     """Process an uploaded video file."""
     try:
+        logger.info(f"Starting file processing for: {video_file.name}")
         # Create well-organized directory structure
         video_title = os.path.splitext(video_file.name)[0]
+        logger.debug(f"Video title: {video_title}")
         video_base_dir = 'video'
         os.makedirs(video_base_dir, exist_ok=True)
         
@@ -123,6 +162,7 @@ def process_uploaded_file(video_file):
 
         # Save uploaded file to the video directory
         video_path = os.path.join(video_dir, video_file.name)
+        logger.debug(f"Saving video to: {video_path}")
         with open(video_path, "wb") as f:
             f.write(video_file.getbuffer())
         logger.info(f"Saved video file to: {video_path}")
@@ -181,21 +221,23 @@ def process_uploaded_file(video_file):
         
         # Now process all segments
         total_segments = len(segments_to_process)
-        for i, segment_path in enumerate(segments_to_process):
-            # Update progress
-            progress_percentage = int((i / total_segments) * 100)
-            progress_bar.progress(progress_percentage)
-            
-            # Process segment
-            try:
-                execute_video_processing(
-                    st, segment_path, system_prompt, user_prompt, temperature,
-                    frames_per_second, analysis_subdir, segment_num, video_duration
-                )
-                segment_num += 1
-            except Exception as ex:
-                logger.error(f"Error processing segment {i+1}: {str(ex)}")
-                st.error(f"Error processing segment {i+1}: {str(ex)}")
+        logger.info(f"Processing video in {total_segments} segments")
+        with TimerLog(logger, f"Processing all {total_segments} segments"):
+            for i, segment_path in enumerate(segments_to_process):
+                # Update progress
+                progress_percentage = int((i / total_segments) * 100)
+                progress_bar.progress(progress_percentage)
+                
+                # Process segment
+                try:
+                    execute_video_processing(
+                        st, segment_path, system_prompt, user_prompt, temperature,
+                        frames_per_second, analysis_subdir, segment_num, video_duration
+                    )
+                    segment_num += 1
+                except Exception as ex:
+                    logger.error(f"Error processing segment {i+1}: {str(ex)}")
+                    st.error(f"Error processing segment {i+1}: {str(ex)}")
         
         # Update progress to 100%
         progress_bar.progress(100)
@@ -213,17 +255,20 @@ def process_uploaded_file(video_file):
         st.session_state.show_chat = True
         
         # Register this video in the cache system for future retrieval
+        logger.info(f"Registering analysis in cache for {video_file.name}")
         register_video_analysis(video_file, video_dir)
         
         st.success(f"Processing complete! Analyzed {segment_num} segments.")
+        logger.info(f"Processing complete for {video_file.name} with {segment_num} segments")
     
     except Exception as ex:
-        logger.error(f"Error processing video file: {str(ex)}")
+        logger.exception(f"Error processing video file: {str(ex)}")
         st.error(f"Error processing video file: {str(ex)}")
 
 def process_video_url(url):
     """Process a video from URL (e.g., YouTube)."""
     try:
+        logger.info(f"Starting URL processing for: {url}")
         # First get video info without downloading
         video_title = "video"  # Default title
         ydl_opts = {
@@ -356,5 +401,5 @@ def process_video_url(url):
         st.success(f"Processing complete! Analyzed {segment_num} segments.")
     
     except Exception as ex:
-        logger.error(f"Error processing URL: {str(ex)}")
+        logger.exception(f"Error processing URL: {str(ex)}")
         st.error(f"Error processing URL: {str(ex)}")

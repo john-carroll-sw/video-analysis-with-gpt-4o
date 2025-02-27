@@ -8,11 +8,12 @@ import json
 import time
 import logging
 
+# Get logger for this module
 logger = logging.getLogger(__name__)
 
 def process_video(video_path, frames_per_second=1, resize=4, output_dir=''):
     """Extract and encode frames from a video file."""
-    logger.info(f"Starting video processing for {video_path}")
+    logger.info(f"Processing video: {video_path}")
     
     base64Frames = []
 
@@ -29,7 +30,7 @@ def process_video(video_path, frames_per_second=1, resize=4, output_dir=''):
         if not success:
             break
 
-        logger.info(f"Processing frame {curr_frame}/{total_frames}")
+        logger.debug(f"Processing frame {curr_frame}/{total_frames}")
 
         if resize != 0:
             height, width, _ = frame.shape
@@ -41,13 +42,14 @@ def process_video(video_path, frames_per_second=1, resize=4, output_dir=''):
             frame_filename = os.path.join(output_dir, f"{os.path.splitext(os.path.basename(video_path))[0]}_frame_{frame_count}.jpg")
             with open(frame_filename, "wb") as f:
                 f.write(buffer)
-                logger.info(f"Saved frame: {frame_filename}")
+                logger.debug(f"Saved frame: {frame_filename}")
             frame_count += 1
 
         base64Frames.append(base64.b64encode(buffer).decode("utf-8"))
         curr_frame += frames_to_skip
     video.release()
     
+    logger.info(f"Extracted {len(base64Frames)} frames")
     return base64Frames
 
 def process_audio(video_path):
@@ -112,6 +114,8 @@ def execute_video_processing(st, segment_path, system_prompt, user_prompt, tempe
     """Process a video segment, incorporating previous segment context."""
     from utils.analysis import analyze_video
     
+    logger.info(f"Processing segment {segment_num + 1} from {segment_path}")
+    
     # Create a segment subcontainer to keep each segment's content organized
     segment_subcontainer = st.container()
     
@@ -133,7 +137,7 @@ def execute_video_processing(st, segment_path, system_prompt, user_prompt, tempe
                 video_analysis_dir = os.path.dirname(analysis_dir)
                 frames_dir = os.path.join(video_analysis_dir, "frames")
                 os.makedirs(frames_dir, exist_ok=True)
-                logger.info(f"Created frames directory at: {frames_dir}")
+                logger.debug(f"Using frames directory: {frames_dir}")
                 output_dir = frames_dir
             else:
                 output_dir = ''

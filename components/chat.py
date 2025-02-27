@@ -4,14 +4,21 @@ import logging
 from utils.api_clients import update_api_clients
 from utils.analysis import chat_with_video_analysis
 from config import CHAT_SYSTEM_PROMPT
+from utils.logging_utils import log_session_state, TimerLog
 
-logger = logging.getLogger(__name__)
+# Set up logger for this component
+logger = logging.getLogger('chat')
 
 def show_chat_page():
     """Display the chat interface."""
+    logger.info("Rendering chat page")
+    
+    # Log current session state
+    log_session_state(logger, st.session_state, "CHAT: ")
     
     # Chat configuration sidebar
     with st.sidebar:
+        logger.debug("Rendering sidebar configuration")
         st.title("Chat Settings")
         
         # Model selection (limited to models that can understand the analysis)
@@ -99,15 +106,27 @@ def show_chat_page():
             
             # API Configuration Section
             show_api_configuration()
+        
+        # Log configuration changes
+        old_config = getattr(st.session_state, '_previous_chat_config', None)
+        # Store current config for comparison next time
+        st.session_state._previous_chat_config = st.session_state.chat_config.copy()
+        
+        if old_config:
+            for key, value in st.session_state.chat_config.items():
+                if key in old_config and old_config[key] != value:
+                    logger.info(f"Chat config changed: {key} = {value} (was {old_config[key]})")
     
     # Main chat container
     st.header("💬 Chat about the video analysis")
     
     # Display chat interface
+    logger.debug("Rendering chat interface")
     show_chat_interface()
 
 def show_api_configuration():
     """Display API configuration UI."""
+    logger.debug("Rendering API configuration")
     st.subheader("API Configuration")
     
     # OpenAI API Configuration Section
@@ -180,6 +199,7 @@ def show_api_configuration():
     
     # Apply Changes button
     if st.button("Apply API Changes", use_container_width=True):
+        logger.info("Applying API configuration changes")
         if update_api_clients():
             st.rerun()
     
@@ -229,6 +249,7 @@ def show_api_configuration():
 
 def show_chat_interface():
     """Display the chat interface with message history and input."""
+    logger.debug(f"Rendering chat interface with {len(st.session_state.chat_history)} messages")
     
     # Chat interface with fixed scrolling region
     st.markdown('<div class="chat-container">', unsafe_allow_html=True)
@@ -257,6 +278,9 @@ def show_chat_interface():
 
 def handle_chat_input(prompt):
     """Handle user chat input."""
+    logger.info(f"New chat input received: {prompt[:50]}..." + ("" if len(prompt) <= 50 else ""))
+    logger.debug(f"Full user prompt: {prompt}")
+    
     with st.chat_message("user"):
         st.write(prompt)
 
@@ -265,6 +289,7 @@ def handle_chat_input(prompt):
         full_response = ""
         
         # Get settings from session state
+        logger.debug(f"Using model settings: temp={st.session_state.chat_config.get('temperature')}, summarize={st.session_state.chat_config.get('summarize_first')}, max_context={st.session_state.chat_config.get('max_context')}")
         temperature = st.session_state.chat_config.get("temperature", 0.7)
         summarize_first = st.session_state.chat_config.get("summarize_first", False)
         max_context = st.session_state.chat_config.get("max_context", len(st.session_state.analyses))
@@ -277,44 +302,60 @@ def handle_chat_input(prompt):
             full_response = error_msg
         else:
             try:
-                # Limit context to max_context segments
-                limited_analyses = st.session_state.analyses[:max_context] if max_context < len(st.session_state.analyses) else st.session_state.analyses
-                
-                # Get chat history formatted for API
-                api_messages = []
-                for msg in st.session_state.chat_history:
-                    if msg["role"] in ["user", "assistant"]:
-                        api_messages.append({"role": msg["role"], "content": msg["content"]})
-                
-                # Get streaming response
-                response = chat_with_video_analysis(
-                    query=prompt,
-                    analyses=limited_analyses,
-                    chat_history=api_messages,
-                    temperature=temperature,
-                    summarize_first=summarize_first
-                )
-                
-                # Process streaming response
-                if isinstance(response, str):  # Error message returned
-                    full_response = response
-                    message_placeholder.error(full_response)
-                else:  # Stream the response
-                    for chunk in response:
-                        if hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content is not None:
-                            full_response += chunk.choices[0].delta.content
-                            message_placeholder.markdown(full_response + "▌")
+                logger.debug("Starting chat request")
+                with TimerLog(logger, "Processing chat request"):
+                    # Limit context to max_context segments
+                    limited_analyses = st.session_state.analyses[:max_context] if max_context < len(st.session_state.analyses) else st.session_state.analyses
                     
-                    # Display final response without cursor
-                    message_placeholder.markdown(full_response)
+                    # Get chat history formatted for API
+                    api_messages = []
+                    for msg in st.session_state.chat_history:
+                        if msg["role"] in ["user", "assistant"]:
+                            api_messages.append({"role": msg["role"], "content": msg["content"]})
+                    
+                    # Get streaming response
+                    response = chat_with_video_analysis(
+                        query=prompt,
+                        analyses=limited_analyses,
+                        chat_history=api_messages,
+                        temperature=temperature,
+                        summarize_first=summarize_first
+                    )
+                    
+                    # Process streaming response
+                    if isinstance(response, str):  # Error message returned
+                        full_response = response
+                        message_placeholder.error(full_response)
+                    else:  # Stream the response
+                        for chunk in response:
+                            if hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content is not None:
+                                full_response += chunk.choices[0].delta.content
+                                message_placeholder.markdown(full_response + "▌")
+                        
+                        # Display final response without cursor
+                        message_placeholder.markdown(full_response)
+                
+                logger.info(f"Chat response generated, length: {len(full_response)}")
+                preview_length = 500
+                logger.debug(f"Response preview: {full_response[:preview_length]}..." + 
+                            ("" if len(full_response) <= preview_length else f" [truncated, total length: {len(full_response)}]"))
+                
+                # For complete analysis, still log the full response at TRACE level if needed
+                if logger.isEnabledFor(logging.DEBUG):  # Only gather this string if we're actually in DEBUG mode
+                    logger.debug(f"Full model response: {full_response}")
                 
             except Exception as e:
                 error_msg = f"Error generating response: {str(e)}"
+                logger.exception("Chat error")
                 message_placeholder.error(error_msg)
                 full_response = error_msg
                 logger.error(f"Chat error: {str(e)}")
         
     # Update chat history
+    logger.debug("Updating chat history")
     from models.session_state import add_chat_message
     add_chat_message("user", prompt)
     add_chat_message("assistant", full_response)
+    
+    # Log the chat interaction ID or sequence number for correlation
+    logger.info(f"Chat interaction #{len(st.session_state.chat_history)//2} completed")

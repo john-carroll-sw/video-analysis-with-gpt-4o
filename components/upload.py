@@ -1,24 +1,39 @@
 import streamlit as st
 import os
+import time
+import logging
 from config import VIDEO_ANALYSIS_SYSTEM_PROMPT, VIDEO_ANALYSIS_USER_PROMPT
-from utils.analysis_cache import check_video_analyzed, check_url_analyzed, load_previous_analysis
-from utils.video_processing import load_all_analyses
+from utils.analysis_cache import check_video_analyzed, check_url_analyzed, load_previous_analysis, get_all_previous_analyses
+from utils.logging_utils import log_session_state, TimerLog
+
+# Set up logger for this component
+logger = logging.getLogger('upload')
 
 def show_upload_page():
     """Display the upload and configuration page."""
+    logger.info("Rendering upload page")
     
     # Initialize upload status flags if they don't exist
     if "file_uploaded_success" not in st.session_state:
+        logger.debug("Initializing file_uploaded_success flag")
         st.session_state.file_uploaded_success = False
     if "url_entered_success" not in st.session_state:
+        logger.debug("Initializing url_entered_success flag")
         st.session_state.url_entered_success = False
     if "previous_analysis_path" not in st.session_state:
+        logger.debug("Initializing previous_analysis_path")
         st.session_state.previous_analysis_path = None
     if "use_previous_analysis" not in st.session_state:
+        logger.debug("Initializing use_previous_analysis flag")
         st.session_state.use_previous_analysis = False
+    
+    # Log current session state
+    log_session_state(logger, st.session_state, "UPLOAD: ")
     
     # Show sidebar configuration
     with st.sidebar:
+        logger.debug("Rendering sidebar configuration")
+        
         st.header("Video Configuration")
         
         file_or_url = st.radio(
@@ -124,9 +139,20 @@ def show_upload_page():
                     value=st.session_state.config["end_time"],
                     help="Ending point in the video (in seconds). 0 means process until the end"
                 )
+        
+        # Log when configuration changes
+        old_config = getattr(st.session_state, '_previous_config', None)
+        # Store current config for comparison next time
+        st.session_state._previous_config = st.session_state.config.copy()
+        
+        if old_config:
+            for key, value in st.session_state.config.items():
+                if key in old_config and old_config[key] != value:
+                    logger.info(f"Config changed: {key} = {value} (was {old_config[key]})")
     
     # Main upload container
     st.header("Upload Video")
+    logger.debug("Rendering main upload area")
     
     if file_or_url == "File":
         # Use a key that remains consistent for the file uploader
@@ -134,10 +160,13 @@ def show_upload_page():
         
         # When a file is uploaded, store it in session_state and set success flag
         if uploaded_file is not None:
+            logger.info(f"File uploaded: {uploaded_file.name} ({uploaded_file.size} bytes)")
             # Check if we've analyzed this video before
-            previous_analysis_path = check_video_analyzed(uploaded_file)
+            with TimerLog(logger, "Checking for previous analysis"):
+                previous_analysis_path = check_video_analyzed(uploaded_file)
             
             if previous_analysis_path:
+                logger.info(f"Found previous analysis at: {previous_analysis_path}")
                 st.session_state.previous_analysis_path = previous_analysis_path
                 
                 # UI to let the user decide to use previous analysis or re-analyze
@@ -202,12 +231,14 @@ def show_upload_page():
         st.session_state.url_input = url  # Store the current value
         
         if url != "":
+            logger.info(f"URL entered: {url}")
             # Check if we've analyzed this URL before
             start_time = st.session_state.config["start_time"] if st.session_state.config["enable_range"] else 0
             end_time = st.session_state.config["end_time"] if st.session_state.config["enable_range"] else 0
             previous_analysis_path = check_url_analyzed(url, start_time, end_time)
             
             if previous_analysis_path:
+                logger.info(f"Found previous analysis at: {previous_analysis_path}")
                 st.session_state.previous_analysis_path = previous_analysis_path
                 
                 # UI to let the user decide to use previous analysis or re-analyze
@@ -261,5 +292,16 @@ def show_upload_page():
     if st.session_state.video_file is not None or st.session_state.video_url != "":
         if not st.session_state.use_previous_analysis:  # Only show if not using previous analysis
             if st.button("Continue to Analysis", type="primary", use_container_width=True):
+                logger.info("User clicked Continue to Analysis button")
+                # IMPORTANT: Check which input method has content and set file_or_url accordingly
+                if st.session_state.video_file is not None:
+                    logger.info(f"Setting processing mode to File for {st.session_state.video_file.name}")
+                    st.session_state.file_or_url = "File"
+                elif st.session_state.video_url != "":
+                    logger.info(f"Setting processing mode to URL for {st.session_state.video_url}")
+                    st.session_state.file_or_url = "URL"
+                
+                # Now change the phase
+                logger.info("Navigating to Analyze phase")
                 st.session_state.current_phase = "Analyze"
                 st.rerun()
