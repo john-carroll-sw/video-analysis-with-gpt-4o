@@ -167,3 +167,5 @@ segments/
 temp/
 analysis/
 do-not-commit/
+.DS_Store
+__MACOSX/
