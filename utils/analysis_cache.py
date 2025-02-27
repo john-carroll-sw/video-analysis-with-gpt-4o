@@ -182,3 +182,38 @@ def load_previous_analysis(analysis_dir: str) -> Dict:
     except Exception as ex:
         logger.error(f"Error loading previous analysis: {ex}")
         return []
+
+def get_all_previous_analyses():
+    """
+    Get a list of all previously analyzed videos.
+    
+    Returns:
+        A list of dictionaries with metadata about previous analyses
+    """
+    cache = get_analysis_cache()
+    analyses = []
+    
+    for key, data in cache.items():
+        # Verify the analysis directory exists
+        if "analysis_dir" in data and os.path.exists(data["analysis_dir"]):
+            # Add metadata with a friendly name
+            if "url" in data:
+                # It's a URL analysis
+                name = f"URL: {data['url'][:30]}..." if len(data['url']) > 30 else data['url']
+                if data["start_time"] > 0 or data["end_time"] > 0:
+                    name += f" ({data['start_time']}-{data['end_time']} seconds)"
+            else:
+                # It's a file analysis
+                name = f"File: {data['filename']}"
+            
+            analyses.append({
+                "key": key,
+                "name": name,
+                "path": data["analysis_dir"],
+                "timestamp": data["timestamp"],
+                "type": "url" if "url" in data else "file"
+            })
+    
+    # Sort by timestamp, newest first
+    analyses.sort(key=lambda x: x["timestamp"], reverse=True)
+    return analyses

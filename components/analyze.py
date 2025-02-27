@@ -17,8 +17,23 @@ def show_analyze_page():
     
     # Minimal sidebar for this phase
     with st.sidebar:
-        st.info("Processing video. You can view the results in the main panel.")
+        st.info("Video Analysis Results. You can view the detailed analysis in the main panel.")
         
+        # Add button to expand/collapse all segments
+        if "all_segments_expanded" not in st.session_state:
+            st.session_state.all_segments_expanded = False
+            
+        if st.button("Expand All Segments" if not st.session_state.all_segments_expanded else "Collapse All Segments", use_container_width=True):
+            # Toggle the master state
+            st.session_state.all_segments_expanded = not st.session_state.all_segments_expanded
+            
+            # Apply to all segments
+            for analysis_data in st.session_state.current_analyses:
+                segment_key = f"segment_{analysis_data['segment']}_expanded"
+                st.session_state[segment_key] = st.session_state.all_segments_expanded
+            
+            st.rerun()
+            
         if st.button("Edit Configuration", use_container_width=True):
             st.session_state.current_phase = "Upload"
             st.rerun()
@@ -28,11 +43,38 @@ def show_analyze_page():
     
     # Always show previously processed analyses to keep them visible
     if st.session_state.current_analyses:
-        for analysis_data in st.session_state.current_analyses:
-            with st.expander(f"Segment {analysis_data['segment']} ({analysis_data['start_time']}-{analysis_data['end_time']} seconds)", expanded=True):
-                st.markdown(f"**Analysis**: {analysis_data['analysis']}", unsafe_allow_html=True)
-                if st.session_state.config["show_transcription"] and "transcription" in analysis_data and analysis_data["transcription"]:
-                    st.markdown(f"**Transcription**: {analysis_data['transcription']}", unsafe_allow_html=True)
+        # Create container to display all analyses
+        analyses_display_container = st.container()
+        
+        with analyses_display_container:
+            st.subheader(f"Analysis Results ({len(st.session_state.current_analyses)} segments)")
+            
+            # Show each analysis in an expandable container
+            for i, analysis_data in enumerate(st.session_state.current_analyses):
+                # Determine if this segment should be expanded
+                segment_key = f"segment_{analysis_data['segment']}_expanded"
+                if segment_key not in st.session_state:
+                    st.session_state[segment_key] = st.session_state.all_segments_expanded
+                
+                # Create a unique key for each segment's expander and button
+                segment_idx = analysis_data['segment']
+                
+                # Show the segment in an expander - use the state to control expansion
+                with st.expander(
+                    f"Segment {segment_idx} ({analysis_data['start_time']}-{analysis_data['end_time']} seconds)", 
+                    expanded=st.session_state[segment_key]
+                ):
+                    # Add button to toggle just this segment with a unique key
+                    toggle_text = "Collapse" if st.session_state[segment_key] else "Expand"
+                    if st.button(toggle_text, key=f"toggle_btn_{segment_idx}", use_container_width=True):
+                        # Toggle just this segment's state
+                        st.session_state[segment_key] = not st.session_state[segment_key]
+                        st.rerun()
+                    
+                    # Display segment content
+                    st.markdown(f"**Analysis**: {analysis_data['analysis']}", unsafe_allow_html=True)
+                    if st.session_state.config["show_transcription"] and "transcription" in analysis_data and analysis_data["transcription"]:
+                        st.markdown(f"**Transcription**: {analysis_data['transcription']}", unsafe_allow_html=True)
     
     # Check if we need to start processing
     if len(st.session_state.current_analyses) == 0:
