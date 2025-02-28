@@ -166,6 +166,10 @@ def show_upload_page():
         # When a file is uploaded, store it in session_state and set success flag
         if uploaded_file is not None:
             logger.info(f"File uploaded: {uploaded_file.name} ({uploaded_file.size} bytes)")
+            
+            # Add prominent video title display
+            st.markdown(f"## 🎬 Video: {uploaded_file.name}")
+            
             # Extract and store video info
             with st.spinner("Analyzing video metadata..."):
                 video_info = get_video_file_info(uploaded_file)
@@ -229,6 +233,10 @@ def show_upload_page():
             
             # Display video info in a nice format
             with st.expander("Video Information", expanded=True):
+                # First show video title prominently
+                st.markdown(f"### 📽️ {uploaded_file.name}")
+                st.markdown("---")
+                
                 col1, col2 = st.columns(2)
                 with col1:
                     st.markdown("**File Details:**")
@@ -251,6 +259,9 @@ def show_upload_page():
         
         # If returning to this tab with a previously uploaded file
         elif st.session_state.video_file is not None and st.session_state.file_uploaded_success:
+            # Add prominent video title display
+            st.markdown(f"## 🎬 Video: {st.session_state.video_file.name}")
+            
             # Re-display the video and success message for the previously uploaded file
             st.video(st.session_state.video_file)
             st.success(f"File '{st.session_state.video_file.name}' uploaded successfully!")
@@ -258,6 +269,10 @@ def show_upload_page():
             # Display video info if available
             if st.session_state.video_info:
                 with st.expander("Video Information", expanded=True):
+                    # First show video title prominently
+                    st.markdown(f"### 📽️ {st.session_state.video_file.name}")
+                    st.markdown("---")
+                    
                     col1, col2 = st.columns(2)
                     with col1:
                         st.markdown("**File Details:**")
@@ -346,12 +361,20 @@ def show_upload_page():
                 st.session_state.url_entered_success = True
                 st.session_state.previous_analysis_path = None
             
+            # Add prominent video title display
+            video_title = st.session_state.video_info.get('title', 'YouTube Video')
+            st.markdown(f"## 🎬 Video: {video_title}")
+            
             # Show the video and success message
             st.video(url)
             st.success("URL entered successfully!")
             
             # Display video info in a nice format
             with st.expander("Video Information", expanded=True):
+                # First show video title prominently
+                st.markdown(f"### 📽️ {video_title}")
+                st.markdown("---")
+                
                 col1, col2 = st.columns(2)
                 with col1:
                     st.markdown("**Video Details:**")

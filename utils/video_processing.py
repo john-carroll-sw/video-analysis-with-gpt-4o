@@ -118,19 +118,33 @@ def execute_video_processing(st, segment_path, system_prompt, user_prompt, tempe
     
     logger.info(f"Processing segment {segment_num + 1} from {segment_path}")
     
+    # Get video name from path
+    video_folder = os.path.basename(os.path.dirname(os.path.dirname(segment_path)))
+    video_name = video_folder.replace("_analysis", "").replace("_", " ")
+    
     # Create a segment subcontainer to keep each segment's content organized
     segment_subcontainer = st.container()
     
     with segment_subcontainer:
-        st.write(f"Processing segment {segment_num + 1}:")
+        # Add prominent video name and segment information
+        st.markdown(f"## 🎬 {video_name}")
+        st.markdown(f"### Processing segment {segment_num + 1}:")
+        
+        # Get the segment timing information
+        filename = os.path.basename(segment_path)
+        timing = filename.split('_')[-1].replace('.mp4', '')
+        start_time, end_time = map(float, timing.split('-'))
+        st.markdown(f"**Segment Time Range**: {start_time:.1f}s - {end_time:.1f}s")
+        
+        # Show the video segment
         st.video(segment_path)
     
-    # Get the segment timing information
+    # Get the segment timing information for processing
     filename = os.path.basename(segment_path)
     timing = filename.split('_')[-1].replace('.mp4', '')
     start_time, end_time = map(float, timing.split('-'))
     
-    with st.spinner(f"Analyzing video segment {segment_num + 1}"):
+    with st.spinner(f"Analyzing {video_name} - segment {segment_num + 1} ({start_time:.1f}s - {end_time:.1f}s)"):
         # Extract frames
         with st.spinner("Extracting frames..."):
             start_time_proc = time.time()
@@ -169,7 +183,7 @@ def execute_video_processing(st, segment_path, system_prompt, user_prompt, tempe
 
     # Show results in the segment subcontainer
     with segment_subcontainer:
-        st.success("Segment analysis completed.")
+        st.success(f"Analysis completed for {video_name} - segment {segment_num + 1}")
         st.markdown(f"**Analysis**: {analysis}", unsafe_allow_html=True)
         if st.session_state.config["show_transcription"] and st.session_state.config["audio_transcription"] and transcription:
             st.markdown(f"**Transcription**: {transcription}", unsafe_allow_html=True)
@@ -249,7 +263,7 @@ def get_video_file_info(video_file):
         if (end_time - start_time) % segment_interval > 0:
             total_segments += 1
             
-        # Return info dictionary
+        # Return info dictionary with enhanced information
         return {
             "file_size": file_size,
             "file_size_formatted": f"{file_size_mb:.2f} MB",
@@ -262,7 +276,9 @@ def get_video_file_info(video_file):
             "frame_count": frame_count,
             "format": os.path.splitext(video_file.name)[1][1:].upper(),
             "total_segments": int(total_segments),
-            "segment_duration": segment_interval
+            "segment_duration": segment_interval,
+            "title": video_file.name,
+            "display_name": os.path.splitext(video_file.name)[0].replace("_", " ")
         }
     except Exception as e:
         logger.error(f"Error getting video info: {str(e)}")
@@ -308,8 +324,10 @@ def get_video_url_info(url):
             if (end_time - start_time) % segment_interval > 0:
                 total_segments += 1
             
+            # Return enhanced info dictionary
             return {
                 "title": title,
+                "display_title": title.replace("_", " "),
                 "width": width,
                 "height": height,
                 "resolution": f"{width}x{height}" if width and height else "Unknown",
@@ -317,7 +335,8 @@ def get_video_url_info(url):
                 "duration_formatted": f"{int(duration // 60)}:{int(duration % 60):02d}",
                 "format": "YouTube Video",
                 "total_segments": int(total_segments),
-                "segment_duration": segment_interval
+                "segment_duration": segment_interval,
+                "url": url
             }
     except Exception as e:
         logger.error(f"Error getting URL video info: {str(e)}")
