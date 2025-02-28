@@ -8,6 +8,8 @@ import json
 import time
 import logging
 
+import yt_dlp
+
 # Get logger for this module
 logger = logging.getLogger(__name__)
 
@@ -212,3 +214,117 @@ def load_all_analyses(analysis_dir):
     except Exception as ex:
         logger.error(f"Error loading analyses: {ex}")
     return analyses
+
+def get_video_file_info(video_file):
+    """Extract metadata from an uploaded video file."""
+    try:
+        # Save the file temporarily to get its info
+        temp_path = f"temp_{video_file.name}"
+        with open(temp_path, "wb") as f:
+            f.write(video_file.getbuffer())
+        
+        # Get file size
+        file_size = os.path.getsize(temp_path)
+        file_size_mb = file_size / (1024 * 1024)
+        
+        # Get video metadata using OpenCV
+        cap = cv2.VideoCapture(temp_path)
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        duration = frame_count / fps if fps > 0 else 0
+        
+        # Clean up
+        cap.release()
+        os.remove(temp_path)
+        
+        # Calculate number of segments based on config
+        segment_interval = st.session_state.config["segment_interval"]
+        enable_range = st.session_state.config["enable_range"]
+        start_time = st.session_state.config["start_time"] if enable_range else 0
+        end_time = st.session_state.config["end_time"] if enable_range and st.session_state.config["end_time"] > 0 else duration
+        
+        total_segments = (end_time - start_time) // segment_interval
+        if (end_time - start_time) % segment_interval > 0:
+            total_segments += 1
+            
+        # Return info dictionary
+        return {
+            "file_size": file_size,
+            "file_size_formatted": f"{file_size_mb:.2f} MB",
+            "width": width,
+            "height": height,
+            "resolution": f"{width}x{height}",
+            "fps": fps,
+            "duration": duration,
+            "duration_formatted": f"{int(duration // 60)}:{int(duration % 60):02d}",
+            "frame_count": frame_count,
+            "format": os.path.splitext(video_file.name)[1][1:].upper(),
+            "total_segments": int(total_segments),
+            "segment_duration": segment_interval
+        }
+    except Exception as e:
+        logger.error(f"Error getting video info: {str(e)}")
+        return {
+            "error": f"Failed to extract video information: {str(e)}",
+            "file_size_formatted": f"{video_file.size / (1024 * 1024):.2f} MB",
+            "format": os.path.splitext(video_file.name)[1][1:].upper() if video_file.name else "Unknown"
+        }
+
+def get_video_url_info(url):
+    """Extract metadata from a video URL."""
+    try:
+        ydl_opts = {
+            'quiet': True,
+            'no_warnings': True
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info_dict = ydl.extract_info(url, download=False)
+            
+            # Extract available information
+            duration = info_dict.get('duration', 0)
+            title = info_dict.get('title', 'Unknown')
+            
+            # Get best format info
+            formats = info_dict.get('formats', [])
+            best_video = None
+            for fmt in formats:
+                if fmt.get('width') and fmt.get('height'):
+                    if not best_video or (fmt.get('width', 0) > best_video.get('width', 0)):
+                        best_video = fmt
+            
+            width = best_video.get('width', 0) if best_video else 0
+            height = best_video.get('height', 0) if best_video else 0
+            
+            # Calculate number of segments
+            segment_interval = st.session_state.config["segment_interval"]
+            enable_range = st.session_state.config["enable_range"]
+            start_time = st.session_state.config["start_time"] if enable_range else 0
+            end_time = st.session_state.config["end_time"] if enable_range and st.session_state.config["end_time"] > 0 else duration
+            
+            total_segments = (end_time - start_time) // segment_interval
+            if (end_time - start_time) % segment_interval > 0:
+                total_segments += 1
+            
+            return {
+                "title": title,
+                "width": width,
+                "height": height,
+                "resolution": f"{width}x{height}" if width and height else "Unknown",
+                "duration": duration,
+                "duration_formatted": f"{int(duration // 60)}:{int(duration % 60):02d}",
+                "format": "YouTube Video",
+                "total_segments": int(total_segments),
+                "segment_duration": segment_interval
+            }
+    except Exception as e:
+        logger.error(f"Error getting URL video info: {str(e)}")
+        return {
+            "error": f"Failed to extract video information: {str(e)}",
+            "format": "YouTube/URL Video",
+            "duration": 0,
+            "duration_formatted": "Unknown"
+        }
+

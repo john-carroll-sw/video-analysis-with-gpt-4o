@@ -3,8 +3,10 @@ import os
 import time
 import logging
 from config import VIDEO_ANALYSIS_SYSTEM_PROMPT, VIDEO_ANALYSIS_USER_PROMPT
-from utils.analysis_cache import check_video_analyzed, check_url_analyzed, load_previous_analysis, get_all_previous_analyses
+from utils.analysis_cache import check_video_analyzed, check_url_analyzed, load_previous_analysis
 from utils.logging_utils import log_session_state, TimerLog
+
+from utils.video_processing import get_video_file_info, get_video_url_info
 
 # Set up logger for this component
 logger = logging.getLogger('upload')
@@ -26,6 +28,9 @@ def show_upload_page():
     if "use_previous_analysis" not in st.session_state:
         logger.debug("Initializing use_previous_analysis flag")
         st.session_state.use_previous_analysis = False
+    if "video_info" not in st.session_state:
+        logger.debug("Initializing video_info")
+        st.session_state.video_info = {}
     
     # Log current session state
     log_session_state(logger, st.session_state, "UPLOAD: ")
@@ -154,13 +159,19 @@ def show_upload_page():
     st.header("Upload Video")
     logger.debug("Rendering main upload area")
     
-    if file_or_url == "File":
+    if st.session_state.file_or_url == "File":
         # Use a key that remains consistent for the file uploader
         uploaded_file = st.file_uploader("Upload a video file", type=["mp4", "avi", "mov"], key="video_file_uploader")
         
         # When a file is uploaded, store it in session_state and set success flag
         if uploaded_file is not None:
             logger.info(f"File uploaded: {uploaded_file.name} ({uploaded_file.size} bytes)")
+            # Extract and store video info
+            with st.spinner("Analyzing video metadata..."):
+                video_info = get_video_file_info(uploaded_file)
+                st.session_state.video_info = video_info
+                logger.info(f"Extracted video info: {video_info}")
+            
             # Check if we've analyzed this video before
             with TimerLog(logger, "Checking for previous analysis"):
                 previous_analysis_path = check_video_analyzed(uploaded_file)
@@ -215,12 +226,57 @@ def show_upload_page():
             # Show the video
             st.video(uploaded_file)
             st.success(f"File '{uploaded_file.name}' uploaded successfully!")
+            
+            # Display video info in a nice format
+            with st.expander("Video Information", expanded=True):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown("**File Details:**")
+                    st.write(f"📊 File Size: {video_info.get('file_size_formatted', 'Unknown')}")
+                    st.write(f"🎬 Format: {video_info.get('format', 'Unknown')}")
+                    st.write(f"🖥️ Resolution: {video_info.get('resolution', 'Unknown')}")
+                    st.write(f"⏱️ Duration: {video_info.get('duration_formatted', 'Unknown')}")
+                    st.write(f"🎞️ FPS: {video_info.get('fps', 'Unknown'):.2f}")
+                
+                with col2:
+                    st.markdown("**Processing Details:**")
+                    segment_interval = st.session_state.config["segment_interval"]
+                    st.write(f"🔄 Segment Duration: {segment_interval} seconds")
+                    st.write(f"📊 Total Segments: {video_info.get('total_segments', 'Unknown')}")
+                    if st.session_state.config["enable_range"]:
+                        st.write(f"⏱️ Analysis Range: {st.session_state.config['start_time']}s - {st.session_state.config['end_time']}s")
+                    else:
+                        st.write(f"⏱️ Analysis Range: Full video (0s - {video_info.get('duration', 0):.1f}s)")
+                    st.write(f"🖼️ Frames per Second: {st.session_state.config['frames_per_second']}")
         
         # If returning to this tab with a previously uploaded file
         elif st.session_state.video_file is not None and st.session_state.file_uploaded_success:
             # Re-display the video and success message for the previously uploaded file
             st.video(st.session_state.video_file)
             st.success(f"File '{st.session_state.video_file.name}' uploaded successfully!")
+            
+            # Display video info if available
+            if st.session_state.video_info:
+                with st.expander("Video Information", expanded=True):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.markdown("**File Details:**")
+                        st.write(f"📊 File Size: {st.session_state.video_info.get('file_size_formatted', 'Unknown')}")
+                        st.write(f"🎬 Format: {st.session_state.video_info.get('format', 'Unknown')}")
+                        st.write(f"🖥️ Resolution: {st.session_state.video_info.get('resolution', 'Unknown')}")
+                        st.write(f"⏱️ Duration: {st.session_state.video_info.get('duration_formatted', 'Unknown')}")
+                        st.write(f"🎞️ FPS: {st.session_state.video_info.get('fps', 'Unknown'):.2f}")
+                    
+                    with col2:
+                        st.markdown("**Processing Details:**")
+                        segment_interval = st.session_state.config["segment_interval"]
+                        st.write(f"🔄 Segment Duration: {segment_interval} seconds")
+                        st.write(f"📊 Total Segments: {st.session_state.video_info.get('total_segments', 'Unknown')}")
+                        if st.session_state.config["enable_range"]:
+                            st.write(f"⏱️ Analysis Range: {st.session_state.config['start_time']}s - {st.session_state.config['end_time']}s")
+                        else:
+                            st.write(f"⏱️ Analysis Range: Full video (0s - {st.session_state.video_info.get('duration', 0):.1f}s)")
+                        st.write(f"🖼️ Frames per Second: {st.session_state.config['frames_per_second']}")
     
     else:  # URL input section
         # For URL input, we need a consistent key and to preserve the entered value
@@ -232,6 +288,12 @@ def show_upload_page():
         
         if url != "":
             logger.info(f"URL entered: {url}")
+            # Extract and store video info
+            with st.spinner("Analyzing video metadata..."):
+                video_info = get_video_url_info(url)
+                st.session_state.video_info = video_info
+                logger.info(f"Extracted video info: {video_info}")
+            
             # Check if we've analyzed this URL before
             start_time = st.session_state.config["start_time"] if st.session_state.config["enable_range"] else 0
             end_time = st.session_state.config["end_time"] if st.session_state.config["enable_range"] else 0
@@ -287,6 +349,27 @@ def show_upload_page():
             # Show the video and success message
             st.video(url)
             st.success("URL entered successfully!")
+            
+            # Display video info in a nice format
+            with st.expander("Video Information", expanded=True):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown("**Video Details:**")
+                    st.write(f"📝 Title: {video_info.get('title', 'Unknown')}")
+                    st.write(f"🖥️ Resolution: {video_info.get('resolution', 'Unknown')}")
+                    st.write(f"⏱️ Duration: {video_info.get('duration_formatted', 'Unknown')}")
+                    st.write(f"🎬 Source: {video_info.get('format', 'YouTube/URL Video')}")
+                
+                with col2:
+                    st.markdown("**Processing Details:**")
+                    segment_interval = st.session_state.config["segment_interval"]
+                    st.write(f"🔄 Segment Duration: {segment_interval} seconds")
+                    st.write(f"📊 Total Segments: {video_info.get('total_segments', 'Unknown')}")
+                    if st.session_state.config["enable_range"]:
+                        st.write(f"⏱️ Analysis Range: {st.session_state.config['start_time']}s - {st.session_state.config['end_time']}s")
+                    else:
+                        st.write(f"⏱️ Analysis Range: Full video (0s - {video_info.get('duration', 0):.1f}s)")
+                    st.write(f"🖼️ Frames per Second: {st.session_state.config['frames_per_second']}")
     
     # Continue button - only enable if file is uploaded or URL is entered
     if st.session_state.video_file is not None or st.session_state.video_url != "":
