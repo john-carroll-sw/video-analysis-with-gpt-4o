@@ -23,9 +23,6 @@ def show_analyze_page():
     log_session_state(logger, st.session_state, "ANALYZE: ")
     logger.info(f"Processing mode: {st.session_state.file_or_url}")
     
-    # Add a prominent debug/fix panel right at the top of the main area
-    # ... existing code ...
-    
     # Minimal sidebar for this phase
     with st.sidebar:
         logger.debug("Rendering sidebar")
@@ -243,11 +240,11 @@ def process_uploaded_file(video_file):
         progress_bar.progress(100)
         
         # Clean up original video file but keep segments
-        # try:
-        #     os.remove(video_path)
-        #     logger.info(f"Removed original video file: {video_path}")
-        # except Exception as ex:
-        #     logger.error(f"Error removing original video file: {str(ex)}")
+        try:
+            os.remove(video_path)
+            logger.info(f"Removed original video file: {video_path}")
+        except Exception as ex:
+            logger.error(f"Error removing original video file: {str(ex)}")
         
         # After all segments are processed, load all analyses
         analyses = load_all_analyses(analysis_subdir)

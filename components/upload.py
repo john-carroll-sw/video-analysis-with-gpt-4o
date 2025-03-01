@@ -68,7 +68,7 @@ def show_upload_page():
             'Segment interval (seconds)', 
             min_value=1, 
             value=int(st.session_state.config["segment_interval"]),
-            help="Split the video into segments of this length in seconds for analysis"
+            help="Determines the length of video segments for analysis. A shorter interval (e.g., every 10 seconds) allows the AI model to capture more granular, context-rich details, which can be beneficial for spotting subtle changes or events. Conversely, a longer interval (e.g., every 60 seconds) offers a broader overview with less processing overhead. Adjust this setting based on the level of detail you require from the video footage."
         ))
         
         # Fix the frames_per_second input with consistent float types
@@ -79,7 +79,7 @@ def show_upload_page():
             value=float(st.session_state.config["frames_per_second"]), 
             step=0.1,
             format="%.1f",
-            help="How many frames to extract per second of video. Lower values save tokens but may miss details"
+            help="Set the extraction rate: 0.1 FPS captures one frame every 10 seconds (low temporal detail, token-saving), 1 FPS offers a balance between detail and performance, while 30 FPS captures nearly every moment (high temporal detail, higher token usage)."
         ))
         
         st.session_state.config["resize"] = int(st.number_input(
