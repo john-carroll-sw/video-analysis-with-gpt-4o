@@ -19,7 +19,7 @@ from utils.api_clients import initialize_api_clients
 
 # Configure page
 st.set_page_config(
-    page_title="Video Analysis with LLM's",
+    page_title="Video Analysis and Chat with LLM's",
     layout="wide",
     initial_sidebar_state="auto",
 )
@@ -43,7 +43,7 @@ def main():
     
     # Header and navigation
     st.image("microsoft.png", width=100)
-    st.title('Video Analysis with LLM\'s')
+    st.title('Video Analysis and Chat with LLM\'s')
     
     # Define tab titles and corresponding phases
     tabs = [
