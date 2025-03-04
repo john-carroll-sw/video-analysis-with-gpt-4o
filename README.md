@@ -2,6 +2,8 @@
 
 This project provides tools for analyzing video content using Large Language Models (LLMs), particularly GPT-4o with vision capabilities. The application can process videos from local files or URLs, segment them for efficient analysis, extract audio transcriptions, and provide AI-powered insights about the video content.
 
+![Video Shot Analysis Demo](https://raw.githubusercontent.com/john-carroll-sw/video-analysis-with-gpt-4o/main/VideoAnalysisWithLLMs.gif)
+
 ## Table of Contents
 
 - [Video Analysis with LLMs](#video-analysis-with-llms)
