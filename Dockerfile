@@ -23,14 +23,19 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application code into the container
 COPY . .
 
-# Expose the port that Streamlit will run on
-EXPOSE 8501
+# Set environment variable for Streamlit
+ENV STREAMLIT_SERVER_PORT=8000
+ENV STREAMLIT_SERVER_HEADLESS=true
+ENV STREAMLIT_SERVER_ENABLE_CORS=false
 
-# Use build argument to specify the Python script to run
-ARG PYTHON_SCRIPT
+# Default entry point is app.py but can be overridden
+ARG ENTRY_FILE=app.py
+ENV ENTRY_FILE=${ENTRY_FILE}
 
-# Set the default value for the Python script if not provided
-ENV PYTHON_SCRIPT=${PYTHON_SCRIPT}
+# Expose port
+EXPOSE 8000
 
-# Run the specified Streamlit app
-CMD ["sh", "-c", "streamlit run ${PYTHON_SCRIPT}"]
+# Start the Streamlit app with additional debug information
+CMD echo "Starting Streamlit app with Python $(python --version)" && \
+    streamlit --version && \
+    streamlit run $ENTRY_FILE --server.port 8000 --server.enableCORS false --server.enableXsrfProtection false
