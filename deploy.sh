@@ -228,11 +228,14 @@ fi
 if ! az monitor app-insights component show --app $APP_INSIGHTS_NAME --resource-group $RESOURCE_GROUP --only-show-errors &>/dev/null; then
     echo "Creating Application Insights using ARM template..."
     
-    # Create a unique file for ARM template
-    TEMPLATE_FILE="appinsights_template_$APP_NAME.json"
+    # Create a unique file for ARM template in the current directory with timestamp
+    TIMESTAMP=$(date +%s)
+    TEMPLATE_FILE="./appinsights_template_${APP_NAME}_${TIMESTAMP}.json"
+    
+    echo "Creating template file: $TEMPLATE_FILE"
     
     # Create ARM template for Application Insights
-    cat > $TEMPLATE_FILE << EOL
+    cat > "$TEMPLATE_FILE" << EOL
 {
     "\$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
@@ -254,16 +257,27 @@ if ! az monitor app-insights component show --app $APP_INSIGHTS_NAME --resource-
 }
 EOL
     
-    # Deploy the ARM template
-    echo "Deploying ARM template..."
-    az deployment group create \
-      --name "deploy-appinsights-$APP_NAME" \
-      --resource-group $RESOURCE_GROUP \
-      --template-file $TEMPLATE_FILE \
-      --only-show-errors
-    
-    # Clean up template file
-    rm $TEMPLATE_FILE
+    # Verify template file was created
+    if [ ! -f "$TEMPLATE_FILE" ]; then
+        echo "Error: Failed to create template file. Check permissions and disk space."
+        # Continue anyway - we can try to use the direct method
+    else
+        # Deploy the ARM template
+        echo "Deploying ARM template..."
+        az deployment group create \
+          --name "deploy-appinsights-$APP_NAME" \
+          --resource-group $RESOURCE_GROUP \
+          --template-file "$TEMPLATE_FILE" \
+          --only-show-errors
+        
+        # Clean up template file with error handling
+        echo "Cleaning up template file..."
+        if [ -f "$TEMPLATE_FILE" ]; then
+            rm "$TEMPLATE_FILE" || echo "Warning: Could not remove template file: $TEMPLATE_FILE"
+        else
+            echo "Warning: Template file not found for cleanup: $TEMPLATE_FILE"
+        fi
+    fi
     
     echo "Waiting for Application Insights to be fully provisioned..."
     sleep 15
@@ -303,14 +317,49 @@ if [ -n "$INSTRUMENTATION_KEY" ]; then
     
     echo "Application Insights successfully configured."
 else
+    # Try the direct approach if ARM template didn't work
     echo "Warning: Could not retrieve instrumentation key after $MAX_RETRIES attempts."
-    echo "You may need to manually configure Application Insights for your web app:"
-    echo "./create_appinsights.sh $APP_NAME"
+    echo "Trying direct creation of Application Insights..."
+    
+    # Direct creation approach
+    az monitor app-insights component create \
+        --app $APP_INSIGHTS_NAME \
+        --location $LOCATION \
+        --resource-group $RESOURCE_GROUP \
+        --application-type web \
+        --workspace $LOG_ANALYTICS \
+        --only-show-errors
+        
+    # Get instrumentation key again
+    INSTRUMENTATION_KEY=$(az monitor app-insights component show \
+        --app $APP_INSIGHTS_NAME \
+        --resource-group $RESOURCE_GROUP \
+        --query instrumentationKey \
+        --output tsv --only-show-errors 2>/dev/null || echo "")
+    
+    if [ -n "$INSTRUMENTATION_KEY" ]; then
+        az webapp config appsettings set --name $WEB_APP_NAME --resource-group $RESOURCE_GROUP \
+            --settings APPINSIGHTS_INSTRUMENTATIONKEY=$INSTRUMENTATION_KEY \
+            APPLICATIONINSIGHTS_CONNECTION_STRING=InstrumentationKey=$INSTRUMENTATION_KEY \
+            --only-show-errors
+        echo "Application Insights successfully configured using direct method."
+    else
+        echo "Warning: Could not configure Application Insights. You may need to do this manually."
+    fi
 fi
 
 # Enable Always On for the web app to improve reliability
 echo "Enabling 'Always On' for the Web App..."
 az webapp config set --name $WEB_APP_NAME --resource-group $RESOURCE_GROUP --always-on true
 
-echo "Deployment completed. You can access your app at https://$WEB_APP_NAME.azurewebsites.net"
+# Add WEBSITES_PORT setting for Streamlit apps
+echo "Adding WEBSITES_PORT setting for Streamlit..."
+az webapp config appsettings set --name $WEB_APP_NAME --resource-group $RESOURCE_GROUP \
+    --settings WEBSITES_PORT=8501
+
+echo "==============================================================="
+echo "Deployment completed successfully!"
+echo "==============================================================="
+echo "You can access your app at: https://$WEB_APP_NAME.azurewebsites.net"
 echo "Application Insights dashboard: https://portal.azure.com/#resource/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/microsoft.insights/components/$APP_INSIGHTS_NAME/overview"
+echo "==============================================================="
