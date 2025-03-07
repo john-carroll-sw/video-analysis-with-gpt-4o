@@ -352,11 +352,6 @@ fi
 echo "Enabling 'Always On' for the Web App..."
 az webapp config set --name $WEB_APP_NAME --resource-group $RESOURCE_GROUP --always-on true
 
-# Add WEBSITES_PORT setting for Streamlit apps
-echo "Adding WEBSITES_PORT setting for Streamlit..."
-az webapp config appsettings set --name $WEB_APP_NAME --resource-group $RESOURCE_GROUP \
-    --settings WEBSITES_PORT=8501
-
 echo "==============================================================="
 echo "Deployment completed successfully!"
 echo "==============================================================="
