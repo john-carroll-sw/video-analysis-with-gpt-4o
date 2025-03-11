@@ -108,7 +108,7 @@ def main():
     logger.debug("API clients initialization attempted")
     
     # Header and navigation
-    st.image("microsoft.png", width=100)
+    st.image("media/microsoft.png", width=100)
     
     # Show user info and GitHub link
     header_cols = st.columns([4, 2])

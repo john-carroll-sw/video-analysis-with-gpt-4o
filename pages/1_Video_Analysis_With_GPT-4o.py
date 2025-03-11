@@ -235,7 +235,7 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="auto",
 )
-st.image("microsoft.png", width=100)
+st.image("media/microsoft.png", width=100)
 st.title('Video Analysis with GPT-4o')
 
 with st.sidebar:

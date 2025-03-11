@@ -35,7 +35,7 @@ if __name__ == "__main__":
         
         # Execute the auth server script in the same process
         try:
-            from auth_server import main as auth_server_main
+            from auth_system import main as auth_server_main
             # This will run the auth server in the main thread
             auth_server_main()
         except ImportError as e:
