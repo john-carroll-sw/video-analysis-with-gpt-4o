@@ -21,7 +21,7 @@ load_dotenv(override=True)
 
 # Variables
 PORT = 5555
-HTML_FILE = 'auth_landing.html'
+HTML_FILE = 'auth/auth_landing.html'
 STREAMLIT_APP = 'Video_Analysis_With_LLMs.py'
 AUTH_URL = os.environ.get("VITE_AUTH_URL", "https://gbb-mvp-backend-ffc6fdgahmecaud7.eastus2-01.azurewebsites.net")
 STREAMLIT_PORT = 8501
