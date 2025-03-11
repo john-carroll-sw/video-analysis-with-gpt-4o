@@ -1,18 +1,20 @@
-# Use the official Python image from the Docker Hub
-FROM python:3.12-slim
+# Use an older but more stable Python image 
+FROM python:3.10-slim
 
 # Set the working directory
 WORKDIR /app
 
-# Install dependencies for OpenCV and other necessary libraries
-RUN apt-get update && apt-get install -y \
+# Install dependencies for OpenCV with optimized space usage
+# The key changes are combining commands and clearing apt cache in the same layer
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends \
+    # Minimal dependencies for OpenCV and video processing
     libgl1 \
-    libgl1-mesa-glx \
-    libgl1-mesa-dri \
     libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender1
+    ffmpeg \
+    # Clean up in the same layer to reduce image size
+    && rm -rf /var/cache/apt/* /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Copy the requirements file into the container
 COPY requirements.txt .
@@ -23,19 +25,20 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application code into the container
 COPY . .
 
-# Set environment variable for Streamlit
-ENV STREAMLIT_SERVER_PORT=8000
+# Create necessary directories
+RUN mkdir -p video frames
+
+# Set environment variables for servers
+ENV STREAMLIT_SERVER_PORT=8501
+ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0
 ENV STREAMLIT_SERVER_HEADLESS=true
-ENV STREAMLIT_SERVER_ENABLE_CORS=false
+ENV STREAMLIT_SERVER_ENABLECORS=false
+ENV AUTH_SERVER_PORT=5555
+ENV AUTH_SERVER_ADDRESS=0.0.0.0
+ENV PYTHONUNBUFFERED=1
 
-# Default entry point is app.py but can be overridden
-ARG ENTRY_FILE=app.py
-ENV ENTRY_FILE=${ENTRY_FILE}
+# Expose both Streamlit and Auth server ports
+EXPOSE 8501 5555
 
-# Expose port
-EXPOSE 8000
-
-# Start the Streamlit app with additional debug information
-CMD echo "Starting Streamlit app with Python $(python --version)" && \
-    streamlit --version && \
-    streamlit run $ENTRY_FILE --server.port 8000 --server.enableCORS false --server.enableXsrfProtection false
+# Set entry point to start_app.py which will handle auth if enabled
+CMD ["python", "start_app.py"]
