@@ -10,27 +10,70 @@ az config set extension.dynamic_install_allow_preview=true
 echo "Installing required extensions..."
 az extension add --name application-insights --yes || echo "Failed to install application-insights extension"
 
-# Load environment variables from .env file
-echo "Loading environment variables from .env file"
-if [ ! -f .env ]; then
-    echo "Error: .env file not found. Please create one from .env.sample"
+# Default paths
+ENV_FILE_PATH=".env"
+DOCKERFILE_PATH="deployment/Dockerfile"
+DOCKER_CONTEXT="."  # The root directory containing all files to include in the image
+ENTRY_FILE="start_app.py"  # The specific Python file that runs when the container starts
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --env-file)
+            ENV_FILE_PATH="$2"
+            shift 2
+            ;;
+        --dockerfile)
+            DOCKERFILE_PATH="$2"
+            shift 2
+            ;;
+        --context)
+            DOCKER_CONTEXT="$2"
+            shift 2
+            ;;
+        --entry-file)
+            ENTRY_FILE="$2"
+            shift 2
+            ;;
+        *)
+            APP_NAME="$1"
+            shift
+            ;;
+    esac
+done
+
+# Check for .env file
+echo "Looking for environment variables..."
+if [ ! -f "$ENV_FILE_PATH" ]; then
+    echo "Error: Environment file $ENV_FILE_PATH not found."
+    echo "Please create an .env file or specify one with --env-file"
     exit 1
 fi
 
+# Load environment variables
+echo "Loading environment variables from $ENV_FILE_PATH"
 set -a
-source .env
+source "$ENV_FILE_PATH"
 set +a
 
-# Check if the app name is provided as an argument
-if [ -z "$1" ]; then
-    echo "Usage: $0 <app_name> [entry_file]"
-    echo "Example: $0 image2csv app.py"
+# Check if the app name is provided
+if [ -z "$APP_NAME" ]; then
+    echo "Usage: $0 [--env-file path/to/env] [--dockerfile path/to/Dockerfile] [--context path/to/context] [--entry-file app_entry_point.py] <app_name>"
+    echo "Example: $0 video-analysis-app"
+    echo "All parameters are optional except for app_name, which must be specified last"
+    echo "Default values:"
+    echo "  --env-file .env"
+    echo "  --dockerfile deployment/Dockerfile"
+    echo "  --context ."
+    echo "  --entry-file start_app.py"
     exit 1
 fi
 
-# Variables from command line args
-APP_NAME=$1
-ENTRY_FILE=${2:-"app.py"}  # Default to app.py if not provided
+# Check if Dockerfile exists
+if [ ! -f "$DOCKERFILE_PATH" ]; then
+    echo "Error: Dockerfile not found at $DOCKERFILE_PATH"
+    exit 1
+fi
 
 # Check if required environment variables are set
 REQUIRED_VARS=("AZURE_RESOURCE_GROUP" "AZURE_LOCATION" "AZURE_ACR_NAME" 
@@ -38,7 +81,7 @@ REQUIRED_VARS=("AZURE_RESOURCE_GROUP" "AZURE_LOCATION" "AZURE_ACR_NAME"
               
 for var in "${REQUIRED_VARS[@]}"; do
     if [ -z "${!var}" ]; then
-        echo "Error: Required environment variable $var is not set in .env file"
+        echo "Error: Required environment variable $var is not set in $ENV_FILE_PATH"
         exit 1
     fi
 done
@@ -78,13 +121,16 @@ function retry {
 }
 
 echo "Starting deployment for app: $APP_NAME"
+echo "Using environment file: $ENV_FILE_PATH"
+echo "Using Dockerfile: $DOCKERFILE_PATH"
+echo "Using Docker context: $DOCKER_CONTEXT"
+echo "Using entry file: $ENTRY_FILE"
 echo "RESOURCE_GROUP: $RESOURCE_GROUP"
 echo "LOCATION: $LOCATION"
 echo "ACR_NAME: $ACR_NAME"
 echo "APP_SERVICE_PLAN: $APP_SERVICE_PLAN"
 echo "WEB_APP_NAME: $WEB_APP_NAME"
 echo "IMAGE_NAME: $IMAGE_NAME"
-echo "ENTRY_FILE: $ENTRY_FILE"
 echo "APP_SERVICE_SKU: $APP_SERVICE_SKU"
 
 # Check if already logged in to Azure
@@ -153,28 +199,53 @@ fi
 echo "Logging in to Azure Container Registry: $ACR_NAME"
 az acr login --name $ACR_NAME
 
-# Build the Docker image
+# Build the Docker image with timestamp for uniqueness
 echo "Building Docker image: $ACR_NAME.azurecr.io/$IMAGE_NAME:$DOCKER_IMAGE_TAG"
-docker build --platform linux/amd64 --build-arg ENTRY_FILE=$ENTRY_FILE -t $ACR_NAME.azurecr.io/$IMAGE_NAME:$DOCKER_IMAGE_TAG .
+BUILD_TIMESTAMP=$(date +%Y%m%d%H%M%S)
+UNIQUE_IMAGE_TAG="${DOCKER_IMAGE_TAG}-${BUILD_TIMESTAMP}"
+echo "Using unique image tag: $UNIQUE_IMAGE_TAG"
+
+# Build with platform specification for better compatibility
+# Passes the entry file name and other environment args
+docker build --platform linux/amd64 \
+  -f $DOCKERFILE_PATH \
+  --build-arg ENTRY_FILE=$ENTRY_FILE \
+  --build-arg VITE_AUTH_URL="$VITE_AUTH_URL" \
+  --build-arg VITE_AUTH_ENABLED="$VITE_AUTH_ENABLED" \
+  -t $ACR_NAME.azurecr.io/$IMAGE_NAME:$DOCKER_IMAGE_TAG \
+  -t $ACR_NAME.azurecr.io/$IMAGE_NAME:$UNIQUE_IMAGE_TAG \
+  $DOCKER_CONTEXT
 
 # Push the Docker image to the Azure Container Registry
 echo "Pushing Docker image to Azure Container Registry: $ACR_NAME.azurecr.io/$IMAGE_NAME:$DOCKER_IMAGE_TAG"
 docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:$DOCKER_IMAGE_TAG
+docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:$UNIQUE_IMAGE_TAG
 
 # Create a Web App for Containers if it doesn't exist
 if ! az webapp show --name $WEB_APP_NAME --resource-group $RESOURCE_GROUP &>/dev/null; then
     echo "Creating Web App for Containers: $WEB_APP_NAME"
     az webapp create --resource-group $RESOURCE_GROUP --plan $APP_SERVICE_PLAN --name $WEB_APP_NAME \
-        --deployment-container-image-name $ACR_NAME.azurecr.io/$IMAGE_NAME:$DOCKER_IMAGE_TAG
+        --deployment-container-image-name $ACR_NAME.azurecr.io/$IMAGE_NAME:$UNIQUE_IMAGE_TAG
+    
+    # Add configuration for the auth server port
+    echo "Configuring port mappings for authentication server..."
+    az webapp config appsettings set --resource-group $RESOURCE_GROUP --name $WEB_APP_NAME \
+        --settings WEBSITES_PORT=8501 FRONTEND_URL="https://${WEB_APP_NAME}.azurewebsites.net"
 else
     echo "Web App $WEB_APP_NAME already exists. Updating container image."
+    # Use the unique tag to force an update
     az webapp config container set --name $WEB_APP_NAME --resource-group $RESOURCE_GROUP \
-        --docker-custom-image-name $ACR_NAME.azurecr.io/$IMAGE_NAME:$DOCKER_IMAGE_TAG \
+        --docker-custom-image-name $ACR_NAME.azurecr.io/$IMAGE_NAME:$UNIQUE_IMAGE_TAG \
         --docker-registry-server-url https://$ACR_NAME.azurecr.io
+    
+    # Update frontend URL setting
+    az webapp config appsettings set --resource-group $RESOURCE_GROUP --name $WEB_APP_NAME \
+        --settings FRONTEND_URL="https://${WEB_APP_NAME}.azurewebsites.net"
 fi
 
-# Get all environment variable names from .env file
-ENV_VARS=$(grep -v '^#' .env | grep -v '^AZURE_RESOURCE' | grep -v '^AZURE_LOCATION' \
+# Get all environment variable names from the specified .env file
+echo "Reading environment variables from $ENV_FILE_PATH"
+ENV_VARS=$(grep -v '^#' "$ENV_FILE_PATH" | grep -v '^AZURE_RESOURCE' | grep -v '^AZURE_LOCATION' \
           | grep -v '^AZURE_ACR' | grep -v '^AZURE_APP_SERVICE' | grep -v '^AZURE_KEY_VAULT' \
           | grep -v '^AZURE_LOG_ANALYTICS' | grep -v 'DOCKER_IMAGE_TAG' | grep '=' | cut -d '=' -f1)
 
@@ -185,12 +256,18 @@ APPSETTINGS_CMD="az webapp config appsettings set --resource-group $RESOURCE_GRO
 for var in $ENV_VARS; do
     # Use indirect reference to get the value
     value=${!var}
-    APPSETTINGS_CMD="$APPSETTINGS_CMD $var='$value'"
+    if [ -n "$value" ]; then  # Only add if value is not empty
+        APPSETTINGS_CMD="$APPSETTINGS_CMD $var='$value'"
+    fi
 done
 
-# Set environment variables in Azure Web App
-echo "Setting environment variables in Azure Web App: $WEB_APP_NAME"
-eval $APPSETTINGS_CMD
+# Set environment variables in Azure Web App if we have any to set
+if [ "$APPSETTINGS_CMD" != "az webapp config appsettings set --resource-group $RESOURCE_GROUP --name $WEB_APP_NAME --settings" ]; then
+    echo "Setting environment variables in Azure Web App: $WEB_APP_NAME"
+    eval $APPSETTINGS_CMD
+else
+    echo "No environment variables to set in Azure Web App."
+fi
 
 # Enable application logs
 echo "Enabling application logs for Web App: $WEB_APP_NAME"
@@ -351,6 +428,10 @@ fi
 # Enable Always On for the web app to improve reliability
 echo "Enabling 'Always On' for the Web App..."
 az webapp config set --name $WEB_APP_NAME --resource-group $RESOURCE_GROUP --always-on true
+
+# Add a restart to ensure new container is used
+echo "Restarting web app to ensure changes are applied..."
+az webapp restart --name $WEB_APP_NAME --resource-group $RESOURCE_GROUP
 
 echo "==============================================================="
 echo "Deployment completed successfully!"
