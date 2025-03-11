@@ -4,6 +4,8 @@
 
 The aim of this repository is to demonstrate the capabilities of GPT-4o to analyze and extract insights from a video file or a video URL (e.g., YouTube).
 
+![Video Analysis With LLMs](https://raw.githubusercontent.com/john-carroll-sw/video-analysis-with-gpt-4o/main/media/VideoAnalysisWithLLMs.gif)
+
 ## Table of Contents
 
 - [Video Analysis with GPT-4o](#video-analysis-with-gpt-4o)
@@ -108,7 +110,7 @@ Then click the "Analyze video" button to start the analysis.
 
 A screenshot:
 
-<img src="./Screenshot.png" alt="Sample Screenshot"/>
+<img src="./media/Screenshot.png" alt="Sample Screenshot"/>
 
 ### Deployment
 
@@ -174,7 +176,7 @@ To analyze a YouTube video with a shot interval of 60 seconds, extracting 1 fram
 Then click the "Analyze video" button to start the analysis.
 
 ### Demo
-![Video Shot Analysis Demo](https://raw.githubusercontent.com/john-carroll-sw/video-analysis-with-gpt-4o/main/VideoShotAnalysisDemo.gif)
+![Video Shot Analysis Demo](https://raw.githubusercontent.com/john-carroll-sw/video-analysis-with-gpt-4o/main/media/VideoShotAnalysisDemo.gif)
 
 ### Deployment
 
