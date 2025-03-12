@@ -67,16 +67,19 @@ class AuthHandler(http.server.SimpleHTTPRequestHandler):
                     logger.info("Starting Streamlit app after successful authentication")
                     start_streamlit_in_background()
                 
-                # Show a success page that redirects to the appropriate app URL
+                # Show a success page that redirects to the appropriate app URL WITH TOKEN
                 self.send_response(200)
                 self.send_header('Content-type', 'text/html')
                 self.end_headers()
+                
+                # Include token in URL for Azure deployments to avoid token loss
+                app_url_with_token = f"{APP_URL}?auth_token={token}" if IS_AZURE else APP_URL
                 
                 redirect_html = f"""
                 <!DOCTYPE html>
                 <html>
                 <head>
-                    <meta http-equiv="refresh" content="1;URL='{APP_URL}'">
+                    <meta http-equiv="refresh" content="1;URL='{app_url_with_token}'">
                     <title>Authentication Successful</title>
                     <style>
                         body {{ font-family: Arial, sans-serif; text-align: center; padding: 50px; }}
@@ -97,7 +100,7 @@ class AuthHandler(http.server.SimpleHTTPRequestHandler):
                     <h2 class="success">Authentication Successful!</h2>
                     <p>Starting Video Analysis application...</p>
                     <div class="spinner"></div>
-                    <p>You will be redirected automatically to {APP_URL}</p>
+                    <p>You will be redirected automatically to the application...</p>
                 </body>
                 </html>
                 """

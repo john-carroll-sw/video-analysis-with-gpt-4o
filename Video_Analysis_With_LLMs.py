@@ -21,7 +21,7 @@ from models.session_state import initialize_session_state
 from utils.api_clients import initialize_api_clients
 
 # Import custom authentication
-from utils.custom_auth import is_authenticated, AUTH_ENABLED, get_username, logout, redirect_to_auth, check_auth
+from auth.custom_auth import is_authenticated, AUTH_ENABLED, get_username, logout, redirect_to_auth, check_auth
 
 # First, check for token from file system (set by auth_server.py)
 LOCAL_ENV_FILE = ".streamlit_auth_env"
