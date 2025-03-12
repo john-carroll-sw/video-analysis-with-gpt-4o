@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import time
 import logging
+import io  # Add this import for BytesIO
 from config import VIDEO_ANALYSIS_SYSTEM_PROMPT, VIDEO_ANALYSIS_USER_PROMPT
 from utils.analysis_cache import check_video_analyzed, check_url_analyzed, load_previous_analysis
 from utils.logging_utils import log_session_state, TimerLog
@@ -160,138 +161,61 @@ def show_upload_page():
     logger.debug("Rendering main upload area")
     
     if st.session_state.file_or_url == "File":
-        # Use a key that remains consistent for the file uploader
+        # Add option to select between sample video and upload
+        st.info("Choose a video source below:")
+        
+        # Add sample video button - smaller and inline
+        if st.button("📹 Use Sample Video", key="use_sample_video"):
+            # Path to sample video
+            sample_video_path = "./media/sample-video-circuit-board.mp4"
+            
+            logger.info(f"Using sample video from: {sample_video_path}")
+            
+            if os.path.exists(sample_video_path):
+                # Open the sample video file
+                with open(sample_video_path, "rb") as file:
+                    # Create BytesIO object to mimic an uploaded file
+                    file_content = file.read()
+                    sample_video = io.BytesIO(file_content)
+                    sample_video.name = "sample-video-circuit-board.mp4"
+                    sample_video.size = len(file_content)
+                    
+                    # Store in session state
+                    st.session_state.video_file = sample_video
+                    st.session_state.video_url = ""
+                    st.session_state.file_uploaded_success = True
+                    
+                    # Reset the file pointer and process the video
+                    sample_video.seek(0)
+                    process_uploaded_video(sample_video, is_sample=True)
+                    
+                    # Force a rerun to update the UI
+                    st.rerun()
+            else:
+                st.error(f"Sample video not found at {sample_video_path}")
+                logger.error(f"Sample video not found at {sample_video_path}")
+        
+        st.write("OR")
+        
+        # File uploader
         uploaded_file = st.file_uploader("Upload a video file", type=["mp4", "avi", "mov"], key="video_file_uploader")
         
         # When a file is uploaded, store it in session_state and set success flag
         if uploaded_file is not None:
             logger.info(f"File uploaded: {uploaded_file.name} ({uploaded_file.size} bytes)")
             
-            # Add prominent video title display
-            st.markdown(f"## 🎬 Video: {uploaded_file.name}")
+            # Store in session state
+            st.session_state.video_file = uploaded_file
+            st.session_state.video_url = ""
+            st.session_state.file_uploaded_success = True
             
-            # Extract and store video info
-            with st.spinner("Analyzing video metadata..."):
-                video_info = get_video_file_info(uploaded_file)
-                st.session_state.video_info = video_info
-                logger.info(f"Extracted video info: {video_info}")
-            
-            # Check if we've analyzed this video before
-            with TimerLog(logger, "Checking for previous analysis"):
-                previous_analysis_path = check_video_analyzed(uploaded_file)
-            
-            if previous_analysis_path:
-                logger.info(f"Found previous analysis at: {previous_analysis_path}")
-                st.session_state.previous_analysis_path = previous_analysis_path
-                
-                # UI to let the user decide to use previous analysis or re-analyze
-                st.info(f"This video has been analyzed before. Do you want to use the previous analysis?")
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("Load Previous Analysis", key="load_previous", use_container_width=True):
-                        # Load previous analysis
-                        previous_analyses = load_previous_analysis(previous_analysis_path)
-                        
-                        # Set the analyses in session state
-                        st.session_state.analyses = previous_analyses
-                        
-                        # Also set current_analyses to make them visible in the analyze phase
-                        st.session_state.current_analyses = []
-                        for analysis in previous_analyses:
-                            # Format data to match current_analyses structure
-                            st.session_state.current_analyses.append({
-                                "segment": analysis.get("segment", 0),
-                                "start_time": analysis.get("start_time", 0),
-                                "end_time": analysis.get("end_time", 0),
-                                "analysis": analysis.get("analysis", ""),
-                                "transcription": analysis.get("transcription", None)
-                            })
-                        
-                        st.session_state.use_previous_analysis = True
-                        st.session_state.current_phase = "Analyze"
-                        st.rerun()
-                
-                with col2:
-                    if st.button("Re-Analyze Video", key="re_analyze", use_container_width=True):
-                        # Set flag to re-analyze
-                        st.session_state.use_previous_analysis = False
-                        # Continue with normal upload flow
-                        st.session_state.video_file = uploaded_file
-                        st.session_state.video_url = ""
-                        st.session_state.file_uploaded_success = True
-            else:
-                # Normal upload flow for new videos
-                st.session_state.video_file = uploaded_file
-                st.session_state.video_url = ""
-                st.session_state.file_uploaded_success = True
-                st.session_state.previous_analysis_path = None
-            
-            # Show the video
-            st.video(uploaded_file)
-            st.success(f"File '{uploaded_file.name}' uploaded successfully!")
-            
-            # Display video info in a nice format
-            with st.expander("Video Information", expanded=True):
-                # First show video title prominently
-                st.markdown(f"### 📽️ {uploaded_file.name}")
-                st.markdown("---")
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.markdown("**File Details:**")
-                    st.write(f"📊 File Size: {video_info.get('file_size_formatted', 'Unknown')}")
-                    st.write(f"🎬 Format: {video_info.get('format', 'Unknown')}")
-                    st.write(f"🖥️ Resolution: {video_info.get('resolution', 'Unknown')}")
-                    st.write(f"⏱️ Duration: {video_info.get('duration_formatted', 'Unknown')}")
-                    st.write(f"🎞️ FPS: {video_info.get('fps', 'Unknown'):.2f}")
-                
-                with col2:
-                    st.markdown("**Processing Details:**")
-                    segment_interval = st.session_state.config["segment_interval"]
-                    st.write(f"🔄 Segment Duration: {segment_interval} seconds")
-                    st.write(f"📊 Total Segments: {video_info.get('total_segments', 'Unknown')}")
-                    if st.session_state.config["enable_range"]:
-                        st.write(f"⏱️ Analysis Range: {st.session_state.config['start_time']}s - {st.session_state.config['end_time']}s")
-                    else:
-                        st.write(f"⏱️ Analysis Range: Full video (0s - {video_info.get('duration', 0):.1f}s)")
-                    st.write(f"🖼️ Frames per Second: {st.session_state.config['frames_per_second']}")
+            # Process the uploaded video
+            process_uploaded_video(uploaded_file)
         
         # If returning to this tab with a previously uploaded file
         elif st.session_state.video_file is not None and st.session_state.file_uploaded_success:
-            # Add prominent video title display
-            st.markdown(f"## 🎬 Video: {st.session_state.video_file.name}")
-            
-            # Re-display the video and success message for the previously uploaded file
-            st.video(st.session_state.video_file)
-            st.success(f"File '{st.session_state.video_file.name}' uploaded successfully!")
-            
-            # Display video info if available
-            if st.session_state.video_info:
-                with st.expander("Video Information", expanded=True):
-                    # First show video title prominently
-                    st.markdown(f"### 📽️ {st.session_state.video_file.name}")
-                    st.markdown("---")
-                    
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.markdown("**File Details:**")
-                        st.write(f"📊 File Size: {st.session_state.video_info.get('file_size_formatted', 'Unknown')}")
-                        st.write(f"🎬 Format: {st.session_state.video_info.get('format', 'Unknown')}")
-                        st.write(f"🖥️ Resolution: {st.session_state.video_info.get('resolution', 'Unknown')}")
-                        st.write(f"⏱️ Duration: {st.session_state.video_info.get('duration_formatted', 'Unknown')}")
-                        st.write(f"🎞️ FPS: {st.session_state.video_info.get('fps', 'Unknown'):.2f}")
-                    
-                    with col2:
-                        st.markdown("**Processing Details:**")
-                        segment_interval = st.session_state.config["segment_interval"]
-                        st.write(f"🔄 Segment Duration: {segment_interval} seconds")
-                        st.write(f"📊 Total Segments: {st.session_state.video_info.get('total_segments', 'Unknown')}")
-                        if st.session_state.config["enable_range"]:
-                            st.write(f"⏱️ Analysis Range: {st.session_state.config['start_time']}s - {st.session_state.config['end_time']}s")
-                        else:
-                            st.write(f"⏱️ Analysis Range: Full video (0s - {st.session_state.video_info.get('duration', 0):.1f}s)")
-                        st.write(f"🖼️ Frames per Second: {st.session_state.config['frames_per_second']}")
+            # Display the previously uploaded video
+            display_current_video()
     
     else:  # URL input section
         # For URL input, we need a consistent key and to preserve the entered value
@@ -411,3 +335,146 @@ def show_upload_page():
                 logger.info("Navigating to Analyze phase")
                 st.session_state.current_phase = "Analyze"
                 st.rerun()
+
+
+def process_uploaded_video(video_file, is_sample=False):
+    """Process an uploaded/sample video file."""
+    # Add prominent video title display
+    title = "Sample video: Circuit Board" if is_sample else video_file.name
+    st.markdown(f"## 🎬 Video: {title}")
+    
+    # Extract and store video info
+    with st.spinner("Analyzing video metadata..."):
+        # Reset file pointer position if needed
+        if hasattr(video_file, 'seek'):
+            video_file.seek(0)
+        video_info = get_video_file_info(video_file)
+        st.session_state.video_info = video_info
+        logger.info(f"Extracted video info: {video_info}")
+    
+    # Check if we've analyzed this video before
+    with TimerLog(logger, "Checking for previous analysis"):
+        # Reset file pointer position if needed
+        if hasattr(video_file, 'seek'):
+            video_file.seek(0)
+        previous_analysis_path = check_video_analyzed(video_file)
+    
+    if previous_analysis_path:
+        logger.info(f"Found previous analysis at: {previous_analysis_path}")
+        st.session_state.previous_analysis_path = previous_analysis_path
+        
+        # UI to let the user decide to use previous analysis or re-analyze
+        st.info(f"This video has been analyzed before. Do you want to use the previous analysis?")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Load Previous Analysis", key="load_previous", use_container_width=True):
+                # Load previous analysis
+                previous_analyses = load_previous_analysis(previous_analysis_path)
+                
+                # Set the analyses in session state
+                st.session_state.analyses = previous_analyses
+                
+                # Also set current_analyses to make them visible in the analyze phase
+                st.session_state.current_analyses = []
+                for analysis in previous_analyses:
+                    # Format data to match current_analyses structure
+                    st.session_state.current_analyses.append({
+                        "segment": analysis.get("segment", 0),
+                        "start_time": analysis.get("start_time", 0),
+                        "end_time": analysis.get("end_time", 0),
+                        "analysis": analysis.get("analysis", ""),
+                        "transcription": analysis.get("transcription", None)
+                    })
+                
+                st.session_state.use_previous_analysis = True
+                st.session_state.current_phase = "Analyze"
+                st.rerun()
+        
+        with col2:
+            if st.button("Re-Analyze Video", key="re_analyze", use_container_width=True):
+                # Set flag to re-analyze
+                st.session_state.use_previous_analysis = False
+    else:
+        # Normal upload flow for new videos
+        st.session_state.previous_analysis_path = None
+    
+    # Show the video
+    if hasattr(video_file, 'seek'):
+        video_file.seek(0)
+    st.video(video_file)
+    st.success(f"{'Sample' if is_sample else 'File'} loaded successfully!")
+    
+    # Display video info in a nice format
+    with st.expander("Video Information", expanded=True):
+        # First show video title prominently
+        st.markdown(f"### 📽️ {title}")
+        st.markdown("---")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("**File Details:**")
+            st.write(f"📊 File Size: {video_info.get('file_size_formatted', 'Unknown')}")
+            st.write(f"🎬 Format: {video_info.get('format', 'Unknown')}")
+            st.write(f"🖥️ Resolution: {video_info.get('resolution', 'Unknown')}")
+            st.write(f"⏱️ Duration: {video_info.get('duration_formatted', 'Unknown')}")
+            st.write(f"🎞️ FPS: {video_info.get('fps', 'Unknown'):.2f}")
+        
+        with col2:
+            st.markdown("**Processing Details:**")
+            segment_interval = st.session_state.config["segment_interval"]
+            st.write(f"🔄 Segment Duration: {segment_interval} seconds")
+            st.write(f"📊 Total Segments: {video_info.get('total_segments', 'Unknown')}")
+            if st.session_state.config["enable_range"]:
+                st.write(f"⏱️ Analysis Range: {st.session_state.config['start_time']}s - {st.session_state.config['end_time']}s")
+            else:
+                st.write(f"⏱️ Analysis Range: Full video (0s - {video_info.get('duration', 0):.1f}s)")
+            st.write(f"🖼️ Frames per Second: {st.session_state.config['frames_per_second']}")
+
+
+def display_current_video():
+    """Display the currently loaded video and its information."""
+    video_file = st.session_state.video_file
+    
+    # Check if the file is still valid
+    if not hasattr(video_file, 'name'):
+        st.warning("Video file reference has expired. Please reload the video.")
+        return
+    
+    # Add prominent video title display
+    is_sample = video_file.name == "sample-video-circuit-board.mp4"
+    title = "Sample video: Circuit Board" if is_sample else video_file.name
+    st.markdown(f"## 🎬 Video: {title}")
+    
+    # Re-display the video
+    if hasattr(video_file, 'seek'):
+        video_file.seek(0)
+    st.video(video_file)
+    st.success(f"{'Sample' if is_sample else 'File'} loaded successfully!")
+    
+    # Display video info if available
+    if st.session_state.video_info:
+        with st.expander("Video Information", expanded=True):
+            # First show video title prominently
+            st.markdown(f"### 📽️ {title}")
+            st.markdown("---")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("**File Details:**")
+                st.write(f"📊 File Size: {st.session_state.video_info.get('file_size_formatted', 'Unknown')}")
+                st.write(f"🎬 Format: {st.session_state.video_info.get('format', 'Unknown')}")
+                st.write(f"🖥️ Resolution: {st.session_state.video_info.get('resolution', 'Unknown')}")
+                st.write(f"⏱️ Duration: {st.session_state.video_info.get('duration_formatted', 'Unknown')}")
+                st.write(f"🎞️ FPS: {st.session_state.video_info.get('fps', 'Unknown'):.2f}")
+            
+            with col2:
+                st.markdown("**Processing Details:**")
+                segment_interval = st.session_state.config["segment_interval"]
+                st.write(f"🔄 Segment Duration: {segment_interval} seconds")
+                st.write(f"📊 Total Segments: {st.session_state.video_info.get('total_segments', 'Unknown')}")
+                if st.session_state.config["enable_range"]:
+                    st.write(f"⏱️ Analysis Range: {st.session_state.config['start_time']}s - {st.session_state.config['end_time']}s")
+                else:
+                    st.write(f"⏱️ Analysis Range: Full video (0s - {st.session_state.video_info.get('duration', 0):.1f}s)")
+                st.write(f"🖼️ Frames per Second: {st.session_state.config['frames_per_second']}")
