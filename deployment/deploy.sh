@@ -227,10 +227,12 @@ if ! az webapp show --name $WEB_APP_NAME --resource-group $RESOURCE_GROUP &>/dev
     az webapp create --resource-group $RESOURCE_GROUP --plan $APP_SERVICE_PLAN --name $WEB_APP_NAME \
         --deployment-container-image-name $ACR_NAME.azurecr.io/$IMAGE_NAME:$UNIQUE_IMAGE_TAG
     
-    # Add configuration for the auth server port
-    echo "Configuring port mappings for authentication server..."
+    # Add configuration for the auth server port and frontend URL
+    echo "Configuring port mappings and environment for authentication server..."
     az webapp config appsettings set --resource-group $RESOURCE_GROUP --name $WEB_APP_NAME \
-        --settings WEBSITES_PORT=8501 FRONTEND_URL="https://${WEB_APP_NAME}.azurewebsites.net"
+        --settings WEBSITES_PORT=8501 \
+        FRONTEND_URL="https://${WEB_APP_NAME}.azurewebsites.net" \
+        WEBSITE_HOSTNAME="${WEB_APP_NAME}.azurewebsites.net"
 else
     echo "Web App $WEB_APP_NAME already exists. Updating container image."
     # Use the unique tag to force an update
@@ -240,7 +242,8 @@ else
     
     # Update frontend URL setting
     az webapp config appsettings set --resource-group $RESOURCE_GROUP --name $WEB_APP_NAME \
-        --settings FRONTEND_URL="https://${WEB_APP_NAME}.azurewebsites.net"
+        --settings FRONTEND_URL="https://${WEB_APP_NAME}.azurewebsites.net" \
+        WEBSITE_HOSTNAME="${WEB_APP_NAME}.azurewebsites.net"
 fi
 
 # Get all environment variable names from the specified .env file

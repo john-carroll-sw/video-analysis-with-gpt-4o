@@ -20,13 +20,18 @@ logger = logging.getLogger("auth_server")
 load_dotenv(override=True)
 
 # Variables
-PORT = 5555
-HTML_FILE = 'auth/auth_landing.html'
+PORT = int(os.environ.get("AUTH_SERVER_PORT", "5555"))
+ADDRESS = os.environ.get("AUTH_SERVER_ADDRESS", "0.0.0.0")
+HTML_FILE = os.environ.get("AUTH_HTML_FILE", 'auth_landing.html')
 STREAMLIT_APP = 'Video_Analysis_With_LLMs.py'
-AUTH_URL = os.environ.get("VITE_AUTH_URL", "https://gbb-mvp-backend-ffc6fdgahmecaud7.eastus2-01.azurewebsites.net")
-STREAMLIT_PORT = 8501
+AUTH_URL = os.environ.get("VITE_AUTH_URL")
+STREAMLIT_PORT = int(os.environ.get("STREAMLIT_SERVER_PORT", "8501"))
 LOCAL_ENV_FILE = ".streamlit_auth_env"
 FRONTEND_URL = os.environ.get("FRONTEND_URL", f"http://localhost:{PORT}")
+
+# For Azure deployment, determine the app's URL for redirects
+IS_AZURE = os.environ.get("WEBSITE_HOSTNAME") is not None
+APP_URL = f"https://{os.environ.get('WEBSITE_HOSTNAME')}" if IS_AZURE else f"http://localhost:{STREAMLIT_PORT}"
 
 # Global streamlit process reference
 streamlit_process = None
@@ -56,13 +61,13 @@ class AuthHandler(http.server.SimpleHTTPRequestHandler):
                 with open(LOCAL_ENV_FILE, 'w') as f:
                     f.write(f"AUTH_TOKEN={token}\n")
                 
-                # Only start Streamlit after authentication is successful
+                # Only start Streamlit after authentication is successful in local dev
                 global streamlit_process
-                if not streamlit_process or streamlit_process.poll() is not None:
+                if not IS_AZURE and (not streamlit_process or streamlit_process.poll() is not None):
                     logger.info("Starting Streamlit app after successful authentication")
                     start_streamlit_in_background()
                 
-                # Show a success page that redirects to Streamlit
+                # Show a success page that redirects to the appropriate app URL
                 self.send_response(200)
                 self.send_header('Content-type', 'text/html')
                 self.end_headers()
@@ -71,7 +76,7 @@ class AuthHandler(http.server.SimpleHTTPRequestHandler):
                 <!DOCTYPE html>
                 <html>
                 <head>
-                    <meta http-equiv="refresh" content="1;URL='http://localhost:{STREAMLIT_PORT}'">
+                    <meta http-equiv="refresh" content="1;URL='{APP_URL}'">
                     <title>Authentication Successful</title>
                     <style>
                         body {{ font-family: Arial, sans-serif; text-align: center; padding: 50px; }}
@@ -92,7 +97,7 @@ class AuthHandler(http.server.SimpleHTTPRequestHandler):
                     <h2 class="success">Authentication Successful!</h2>
                     <p>Starting Video Analysis application...</p>
                     <div class="spinner"></div>
-                    <p>You will be redirected automatically.</p>
+                    <p>You will be redirected automatically to {APP_URL}</p>
                 </body>
                 </html>
                 """
@@ -112,9 +117,9 @@ class AuthHandler(http.server.SimpleHTTPRequestHandler):
                 if content.startswith('AUTH_TOKEN='):
                     token = content[11:].strip()
                     if self.validate_token(token):
-                        # Start Streamlit if it's not already running
+                        # Start Streamlit if it's not already running and in dev mode
                         global streamlit_process
-                        if not streamlit_process or streamlit_process.poll() is not None:
+                        if not IS_AZURE and (not streamlit_process or streamlit_process.poll() is not None):
                             logger.info("Starting Streamlit app with existing token")
                             start_streamlit_in_background()
                             
@@ -127,11 +132,11 @@ class AuthHandler(http.server.SimpleHTTPRequestHandler):
                         <!DOCTYPE html>
                         <html>
                         <head>
-                            <meta http-equiv="refresh" content="0;URL='http://localhost:{STREAMLIT_PORT}'">
+                            <meta http-equiv="refresh" content="0;URL='{APP_URL}'">
                             <title>Redirecting...</title>
                         </head>
                         <body>
-                            <p>Redirecting to application...</p>
+                            <p>Redirecting to application at {APP_URL}...</p>
                         </body>
                         </html>
                         """
@@ -253,8 +258,8 @@ def start_streamlit_in_background():
 def start_http_server():
     """Start the authentication gateway server"""
     try:
-        with socketserver.TCPServer(("", PORT), AuthHandler) as httpd:
-            logger.info(f"Authentication gateway serving at http://localhost:{PORT}")
+        with socketserver.TCPServer((ADDRESS, PORT), AuthHandler) as httpd:
+            logger.info(f"Authentication gateway serving at http://{ADDRESS}:{PORT}")
             httpd.serve_forever()
     except KeyboardInterrupt:
         logger.info("HTTP Server stopped.")
@@ -278,7 +283,7 @@ def main():
     try:
         logger.info(f"Starting authentication server on port {PORT}")
         # Open browser to the landing page
-        webbrowser.open(f'http://localhost:{PORT}')
+        webbrowser.open(f'http://{ADDRESS}:{PORT}')
         
         # Start HTTP server in main thread
         start_http_server()

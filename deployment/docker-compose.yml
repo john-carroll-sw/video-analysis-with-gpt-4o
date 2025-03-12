@@ -10,7 +10,7 @@ services:
       - "5555:5555"  # Auth server port
     environment:
       - VITE_AUTH_ENABLED=true
-      - VITE_AUTH_URL=${VITE_AUTH_URL:-https://gbb-mvp-backend-ffc6fdgahmecaud7.eastus2-01.azurewebsites.net}
+      - VITE_AUTH_URL=${VITE_AUTH_URL}
       - FRONTEND_URL=http://localhost:5555
       - DOCKER_ENV=true
       # Pass through Azure OpenAI settings from .env
