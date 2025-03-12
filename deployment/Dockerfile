@@ -22,23 +22,22 @@ COPY requirements.txt .
 # Install the dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code into the container
+# Copy application code
 COPY . .
 
-# Create necessary directories
-RUN mkdir -p video frames
-
-# Set environment variables for servers
-ENV STREAMLIT_SERVER_PORT=8501
-ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0
+# Set environment variable for Streamlit
+ENV STREAMLIT_SERVER_PORT=8000
 ENV STREAMLIT_SERVER_HEADLESS=true
-ENV STREAMLIT_SERVER_ENABLECORS=false
-ENV AUTH_SERVER_PORT=5555
-ENV AUTH_SERVER_ADDRESS=0.0.0.0
-ENV PYTHONUNBUFFERED=1
+ENV STREAMLIT_SERVER_ENABLE_CORS=false
 
-# Expose both Streamlit and Auth server ports
-EXPOSE 8501 5555
+# Default entry point is app.py but can be overridden
+ARG ENTRY_FILE=app.py
+ENV ENTRY_FILE=${ENTRY_FILE}
 
-# Set entry point to start_app.py which will handle auth if enabled
-CMD ["python", "start_app.py"]
+# Expose port
+EXPOSE 8000
+
+# Start the Streamlit app with additional debug information
+CMD echo "Starting Streamlit app with Python $(python --version)" && \
+    streamlit --version && \
+    streamlit run $ENTRY_FILE --server.port 8000 --server.enableCORS false --server.enableXsrfProtection false
