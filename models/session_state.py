@@ -38,7 +38,7 @@ def initialize_session_state():
             "segment_interval": DEFAULT_SEGMENT_INTERVAL,
             "frames_per_second": float(DEFAULT_FRAMES_PER_SECOND),
             "resize": RESIZE_OF_FRAMES,
-            "save_frames": True,
+            "save_frames": False,
             "temperature": DEFAULT_TEMPERATURE,
             "video_analysis_system_prompt": VIDEO_ANALYSIS_SYSTEM_PROMPT,
             "video_analysis_user_prompt": VIDEO_ANALYSIS_USER_PROMPT,
