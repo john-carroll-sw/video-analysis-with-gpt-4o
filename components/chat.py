@@ -22,7 +22,7 @@ def show_chat_page():
         st.title("Chat Settings")
         
         # Model selection (limited to models that can understand the analysis)
-        model_options = ["gpt-4o", "gpt-4"]
+        model_options = ["gpt-4o"]
         selected_model = st.selectbox(
             "Model",
             options=model_options,
