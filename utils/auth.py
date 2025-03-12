@@ -7,7 +7,6 @@ import streamlit as st
 import logging
 import sys
 import socket
-from urllib.parse import urlencode
 from dotenv import load_dotenv
 
 # Set up logger with explicit console handler for Azure Web App logs
