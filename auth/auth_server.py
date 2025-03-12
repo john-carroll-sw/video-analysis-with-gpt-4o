@@ -22,7 +22,7 @@ load_dotenv(override=True)
 # Variables
 PORT = int(os.environ.get("AUTH_SERVER_PORT", "5555"))
 ADDRESS = os.environ.get("AUTH_SERVER_ADDRESS", "0.0.0.0")
-HTML_FILE = os.environ.get("AUTH_HTML_FILE", 'auth_landing.html')
+HTML_FILE = os.environ.get("AUTH_HTML_FILE", 'auth/auth_landing.html')  # Correct default path
 STREAMLIT_APP = 'Video_Analysis_With_LLMs.py'
 AUTH_URL = os.environ.get("VITE_AUTH_URL")
 STREAMLIT_PORT = int(os.environ.get("STREAMLIT_SERVER_PORT", "8501"))
