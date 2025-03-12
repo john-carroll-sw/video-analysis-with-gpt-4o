@@ -222,6 +222,14 @@ def show_upload_page():
         if "url_input" not in st.session_state:
             st.session_state.url_input = "https://www.youtube.com/watch?v=Y6kHpAeIr4c"
         
+        st.warning("""
+            ⚠️ **Important Note**: YouTube and other media sites has protective measures against webscraping that may block access to videos. 
+            If you encounter errors, try:
+            - Using file upload instead
+            - Using a different video URL
+            - Downloading the video first and then uploading it
+        """)
+        
         url = st.text_input("Enter video URL:", value=st.session_state.url_input, key="video_url_input")
         st.session_state.url_input = url  # Store the current value
         
