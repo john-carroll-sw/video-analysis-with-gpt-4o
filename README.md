@@ -1,238 +1,249 @@
-# Video Analysis with GPT-4o
+# 📹 Video Analysis with GPT-4o
 
 [![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/john-carroll-sw/video-analysis-with-gpt-4o)
 
-The aim of this repository is to demonstrate the capabilities of GPT-4o to analyze and extract insights from a video file or a video URL (e.g., YouTube).
+A Streamlit application that leverages AI vision capabilities to analyze video content, extract insights, and enable interactive conversations about visual content.
 
 ![Video Analysis With LLMs](https://raw.githubusercontent.com/john-carroll-sw/video-analysis-with-gpt-4o/main/media/VideoAnalysisWithLLMs.gif)
 
-## Table of Contents
+## ✨ Features
 
-- [Video Analysis with GPT-4o](#video-analysis-with-gpt-4o)
-  - [Table of Contents](#table-of-contents)
-  - [Prerequisites](#prerequisites)
-    - [Set up a Python virtual environment in Visual Studio Code](#set-up-a-python-virtual-environment-in-visual-studio-code)
-    - [Environment Configuration](#environment-configuration)
-  - [Video Analysis Script](#video-analysis-script)
-    - [Usage](#usage)
-    - [Parameters](#parameters)
-    - [Example](#example)
-    - [Deployment](#deployment)
-  - [Video Shot Analysis Script](#video-shot-analysis-script)
-    - [Usage](#usage-1)
-    - [Parameters](#parameters-1)
-    - [Example](#example-1)
-    - [Demo](#demo)
-    - [Deployment](#deployment-1)
-  - [YouTube Video Downloader Script](#youtube-video-downloader-script)
-    - [Usage](#usage-2)
-    - [Parameters](#parameters-2)
-    - [Example](#example-2)
+### 🎬 Upload
 
-## Prerequisites
-+ An Azure subscription, with [access to Azure OpenAI](https://aka.ms/oai/access).
-+ An Azure OpenAI service with the service name and an API key.
-+ A deployment of GPT-4o model on the Azure OpenAI Service.
-+ A deployment of Whisper model on the Azure OpenAI Service.
+- Upload local video files (MP4, AVI, MOV) for AI-powered analysis
+- Use a convenient sample video for quick testing and demonstration
+- Analyze videos from URLs (YouTube, etc.) with automatic metadata extraction
+- Reuse previous analyses to save time and processing resources
+- Configure detailed processing parameters for customized analysis
 
-I used Python 3.12.5, [Visual Studio Code with the Python extension](https://code.visualstudio.com/docs/python/python-tutorial), and the [Jupyter extension](https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter) to test this example.
+### 🔍 Analyze
 
-### Set up a Python virtual environment in Visual Studio Code
+- Automated segmentation of videos for detailed frame-by-frame analysis
+- Advanced vision model integration for sophisticated visual understanding
+- Optional audio transcription to incorporate spoken content into analysis
+- Adjustable analysis parameters (segment length, frame rate) for performance optimization
+- Save frames for later reference and review
+- Analyze specific time ranges within longer videos
 
-1. Open the Command Palette (Ctrl+Shift+P).
-1. Search for **Python: Create Environment**.
-1. Select **Venv**.
-1. Select a Python interpreter. Choose 3.10 or later.
+### 💬 Chat
 
-It can take a minute to set up. If you run into problems, see [Python environments in VS Code](https://code.visualstudio.com/docs/python/environments).
+- Discuss analysis results with the AI in natural language
+- Ask detailed questions about specific visual content, scenes, or objects
+- Cross-reference insights across different video segments
+- Explore patterns and observations with AI-assisted interpretation
 
-### Environment Configuration
+## 🚀 Getting Started
 
-Create a `.env` file in the root directory of your project with the following content. You can use the provided [`.env-sample`](.env-sample) as a template:
+### Prerequisites
 
-```
-SYSTEM_PROMPT="You are an expert on Video Analysis. You will be shown a series of images from a video. Describe what is happening in the video, including the objects, actions, and any other relevant details. Be as specific and detailed as possible."
+- Python 3.8 or higher
+- OpenAI API access with GPT-4o vision capabilities
+- Authentication service (optional)
 
-AZURE_OPENAI_ENDPOINT=<your_azure_openai_endpoint>
-AZURE_OPENAI_API_KEY=<your_azure_openai_api_key>
-AZURE_OPENAI_API_VERSION=<your_azure_openai_api_version>
-AZURE_OPENAI_DEPLOYMENT_NAME=<your_azure_openai_deployment_name>
+### Installation
 
-WHISPER_ENDPOINT=<your_whisper_endpoint>
-WHISPER_API_KEY=<your_whisper_api_key>
-WHISPER_API_VERSION=<your_whisper_api_version>
-WHISPER_DEPLOYMENT_NAME=<your_whisper_deployment_name>
-```
+1. Clone the repository:
 
-The needed libraries are specified in [requirements.txt](requirements.txt).
+   ```bash
+   git clone https://github.com/john-carroll-sw/video-analysis-with-gpt-4o.git
+   cd video-analysis-with-gpt-4o
+   ```
 
-## Video Analysis Script
+2. Create and activate a virtual environment:
 
-The `video-analysis-with-gpt-4o.py` script demonstrates the capabilities of GPT-4o to analyze and extract insights from a video file or a video URL (e.g., YouTube). This script is useful for analyzing videos in detail by splitting them into smaller segments and extracting frames at a specified rate. This allows for a more granular analysis of the video content, making it easier to identify specific events, actions, or objects within the video. This script is particularly useful for:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows, use: venv\Scripts\activate
+   ```
 
-- Detailed video analysis for research or academic purposes.
-- Analyzing training or instructional videos to extract key moments.
-- Reviewing security footage to identify specific incidents.
+3. Install the required dependencies:
 
-Here is the code of this demo: [video-analysis-with-gpt-4o.py](video-analysis-with-gpt-4o.py)
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-### Usage
+4. Set up your `.env` file with your Azure OpenAI credentials:
 
-To run the `video-analysis-with-gpt-4o.py` script, execute the following command:
-```
-streamlit run video-analysis-with-gpt-4o.py
+   ```bash
+   # Copy the sample environment file and edit it with your credentials
+   cp .env.sample .env
+   # Now edit the .env file with your preferred editor
+   nano .env  # or use any text editor you prefer
+   ```
+
+### Running the Application
+
+Run the Streamlit application:
+
+```bash
+streamlit run Video_Analysis.py
 ```
 
-### Parameters
+Open your web browser to <http://localhost:8501> to use the application.
 
-- **Video source**: Select whether the video is from a file or a URL.
-- **Continuous transmission**: Check this if the video is a continuous transmission.
-- **Transcribe audio**: Check this to transcribe the audio using Whisper.
-- **Show audio transcription**: Check this to display the audio transcription.
-- **Number of seconds to split the video**: Specify the interval for each video segment.
-- **Number of seconds per frame**: Specify the number of seconds between each frame extraction.
-- **Frames resizing ratio**: Specify the resizing ratio for the frames.
-- **Save the frames**: Check this to save the extracted frames to the "frames" folder.
-- **Temperature for the model**: Specify the temperature for the GPT-4o model.
-- **System Prompt**: Enter the system prompt for the GPT-4o model.
-- **User Prompt**: Enter the user prompt for the GPT-4o model.
+## 📖 Usage Guide
 
-### Example
+### Video Upload
 
-To analyze a YouTube video with a segment interval of 60 seconds, extracting 1 frame every 30 seconds, you would set the parameters as follows:
+1. Select your video source (File or URL) in the sidebar
+2. For file upload:
+   - Click "Use Sample Video" for quick testing without uploading, OR
+   - Upload your own video file through the file uploader
+3. For URL analysis:
+   - Paste a YouTube or other video URL in the input field
+   - **Note**: YouTube has protective measures against webscraping that may block access
+4. Review detailed video information in the expandable section
+5. If the video was analyzed previously, choose to load the existing analysis or re-analyze
 
-- **Video source**: URL
-- **URL**: `https://www.youtube.com/watch?v=example`
-- **Number of seconds to split the video**: 60
-- **Number of seconds per frame**: 30
+### Video Analysis
 
-Then click the "Analyze video" button to start the analysis.
+1. Configure analysis parameters in the sidebar:
+   - **Segment interval**: Duration of each video segment for analysis
+   - **Frames per second**: Rate at which frames are captured (0.1-30)
+   - **Audio transcription**: Enable to include spoken content in analysis
+   - **Frame resize ratio**: Reduce image size for processing efficiency
+   - **Temperature**: Adjust AI creativity level
+2. Customize system and user prompts to guide the analysis direction
+3. Optionally specify a time range to analyze only part of the video
+4. Click "Continue to Analysis" to begin processing
+5. View segment-by-segment analysis results as they are generated
+6. Compare AI insights with visual content for each segment
 
-A screenshot:
+### Chat Interface
 
-<img src="./media/Screenshot.png" alt="Sample Screenshot"/>
+1. Navigate to the Chat tab after analysis is complete
+2. Ask open-ended questions about the video content
+3. Request specific information about scenes, objects, or activities
+4. Compare different segments or request summary insights
+5. The AI will reference analyzed frames to provide context-aware responses
 
-### Deployment
+## 🔐 Authentication
 
-To deploy the `video-analysis-with-gpt-4o.py` script on your Azure tenant in an Azure Container Registry (Docker), follow these steps:
+The application includes an optional authentication system that:
 
-1. Ensure you have the necessary environment variables set in your `.env` file.
-2. Use the provided [deploy.sh](deploy.sh) or [deploy.ps1](deploy.ps1) script to build and deploy the Docker image.
+1. Secures access using an external authentication service
+2. Automatically detects if running locally or in a deployed environment
+3. Properly handles login/logout flows and session management
+4. Can be enabled or disabled based on your requirements
 
-For Bash:
-```sh
-./deploy.sh VideoAnalysisGpt4o video-analysis-with-gpt-4o.py
+### Configuring Authentication
+
+To enable authentication:
+
+1. Set `VITE_AUTH_ENABLED=true` in your `.env` file
+2. Configure `VITE_AUTH_URL` to point to your authentication service
+3. Set `FRONTEND_URL` if deploying to a custom domain
+
+To disable authentication:
+
+1. Set `VITE_AUTH_ENABLED=false` in your `.env` file
+
+## 🧰 How It Works
+
+The application uses a sophisticated multi-stage approach:
+
+1. **Video Processing**: Videos are segmented into manageable chunks and frames are extracted at specified intervals.
+
+2. **Frame Analysis**: The AI vision model examines frames from each segment to understand visual content.
+
+3. **Optional Audio Transcription**: If enabled, the audio is transcribed to provide additional context.
+
+4. **AI Analysis**: The extracted frames and transcriptions are analyzed using AI models with customized prompts.
+
+5. **Interactive Interface**: Results are presented in a segment-by-segment view with the option to chat about insights.
+
+## 🚀 Deployment
+
+You can deploy this application to a server using the included deployment script:
+
+### Quick Deployment
+
+For standard deployment with default settings:
+
+```bash
+./deployment/deploy.sh cool-app-name
 ```
 
-For PowerShell:
-```powershell
-pwsh ./deploy.ps1 -Prefix VideoAnalysisGpt4o -PythonScript video-analysis-with-gpt-4o.py
+### Custom Deployment
+
+For deployment with specific parameters:
+
+```bash
+./deployment/deploy.sh \
+  --env-file .env \
+  --dockerfile deployment/Dockerfile \
+  --context . \
+  --entry-file Video_Analysis.py \
+  cool-app-name
 ```
 
-This will build the Docker image using the [Dockerfile](Dockerfile) and deploy it to Azure App Service.
+The deployment script parameters:
 
-## Video Shot Analysis Script
+- `--env-file`: Path to your environment file with API keys and configuration
+- `--dockerfile`: Path to the Dockerfile for containerization
+- `--context`: Build context for Docker
+- `--entry-file`: Main Python file to run
+- `cool-app-name`: Name for your deployed application (required)
 
-The `video_shot_analysis.py` script will download the specified video, split it into shots based on the defined interval, extract frames at the specified rate, perform the analysis on each shot, and save the analysis results to JSON files in the analysis subdirectory within the main video analysis directory. If `max_duration` is set, only up to that duration of the video will be processed. This script is useful for:
+After deployment, you'll receive a URL where your application is hosted.
 
-- Detailed video analysis for research or academic purposes.
-- Analyzing training or instructional videos to extract key moments.
-- Reviewing security footage to identify specific incidents.
+## 📁 Project Structure
 
-Here is the code of this demo: [video_shot_analysis.py](video_shot_analysis.py)
-
-### Usage
-
-To run the `video_shot_analysis.py` script, execute the following command:
-```
-streamlit run video_shot_analysis.py
-```
-
-### Parameters
-
-- **Video source**: Select whether the video is from a file or a URL.
-- **Continuous transmission**: Check this if the video is a continuous transmission.
-- **Transcribe audio**: Check this to transcribe the audio using Whisper.
-- **Show audio transcription**: Check this to display the audio transcription.
-- **Shot interval in seconds**: Specify the interval for each video shot.
-- **Frames per second**: Specify the number of frames to extract per second.
-- **Frames resizing ratio**: Specify the resizing ratio for the frames.
-- **Save the frames**: Check this to save the extracted frames to the "frames" folder.
-- **Temperature for the model**: Specify the temperature for the GPT-4o model.
-- **System Prompt**: Enter the system prompt for the GPT-4o model.
-- **User Prompt**: Enter the user prompt for the GPT-4o model.
-- **Maximum duration to process (seconds)**: Specify the maximum duration of the video to process. If the video is longer, only this duration will be processed. Set to 0 to process the entire video.
-
-### Example
-
-To analyze a YouTube video with a shot interval of 60 seconds, extracting 1 frame per second, and processing only the first 120 seconds of the video, you would set the parameters as follows:
-
-- **Video source**: URL
-- **URL**: `https://www.youtube.com/watch?v=example`
-- **Shot interval in seconds**: 60
-- **Frames per second**: 1
-- **Maximum duration to process (seconds)**: 120
-
-Then click the "Analyze video" button to start the analysis.
-
-### Demo
-![Video Shot Analysis Demo](https://raw.githubusercontent.com/john-carroll-sw/video-analysis-with-gpt-4o/main/media/VideoShotAnalysisDemo.gif)
-
-### Deployment
-
-To deploy the `video_shot_analysis.py` script on your Azure tenant in an Azure Container Registry (Docker), follow these steps:
-
-1. Ensure you have the necessary environment variables set in your `.env` file.
-2. Use the provided [deploy.sh](deploy.sh) or [deploy.ps1](deploy.ps1) script to build and deploy the Docker image.
-
-For Bash:
-```sh
-./deploy.sh VideoShotAnalysis video_shot_analysis.py
+```plaintext
+video-analysis-with-gpt-4o/
+├── Video_Analysis.py         # Main application entry point
+├── components/               # UI components
+│   ├── upload.py             # Video upload functionality
+│   ├── analyze.py            # Analysis component
+│   └── chat.py               # Chat interface
+├── models/                   # Data models
+│   └── session_state.py      # Session state management
+├── utils/                    # Utility functions
+│   ├── api_clients.py        # API client initialization
+│   ├── auth.py               # Authentication handling
+│   ├── analysis_cache.py     # Previous analysis caching
+│   ├── logging_utils.py      # Logging configuration
+│   └── video_processing.py   # Video handling utilities
+├── media/                    # Media assets
+│   ├── microsoft.png         # Brand assets
+│   └── sample-video-circuit-board.mp4 # Sample video
+├── config.py                 # Configuration settings
+├── deployment/               # Deployment scripts
+├── requirements.txt          # Project dependencies
+├── .env                      # Environment variables (not tracked)
+├── CONTRIBUTING.md           # Contribution guidelines
+└── README.md                 # Project documentation
 ```
 
-For PowerShell:
-```powershell
-pwsh ./deploy.ps1 -Prefix VideoShotAnalysis -PythonScript video_shot_analysis.py
-```
+## ⚙️ Configuration Options
 
-This will build the Docker image using the [Dockerfile](Dockerfile) and deploy it to Azure App Service.
+The sidebar provides numerous configuration options:
 
-## YouTube Video Downloader Script
+- **Audio Transcription**: Enable to transcribe and analyze video audio
+- **Segment Interval**: Set the duration of analysis segments (in seconds)
+- **Frames Per Second**: Control how many frames are extracted (0.1-30)
+- **Frame Resize Ratio**: Optionally reduce frame size for processing
+- **Temperature**: Adjust AI response creativity (0.0-1.0)
+- **Custom Prompts**: Modify system and user prompts for tailored analysis
+- **Time Range**: Analyze only specific portions of longer videos
 
-The `yt_video_downloader.py` script allows you to download a segment of a YouTube video, convert it to MP4 format, and ensure the file size is under 200 MB. This script is useful for:
+## ⚠️ Notes
 
-- Downloading and saving specific parts of a YouTube video for offline viewing.
-- Extracting segments of a video for use in presentations or reports.
-- Ensuring the downloaded video segment is of a manageable size for sharing or storage.
+- YouTube and other media sites have protective measures against web scraping that may block video access
+- For more reliable results, consider downloading videos and uploading the files directly
+- Processing large videos may take significant time and API resources
+- Adjust the frame rate and segment interval to balance between analysis detail and processing time
 
-Here is the code of this demo: [yt_video_downloader.py](yt_video_downloader.py)
+## 🤝 Contributing
 
-### Usage
+Please see the [CONTRIBUTING.md](./CONTRIBUTING.md) file for details on how to contribute to this project.
 
-To run the `yt_video_downloader.py` script, execute the following command:
-```
-python yt_video_downloader.py
-```
+## 📄 License
 
-### Parameters
+This project is licensed under the [MIT License](LICENSE)
 
-- **YouTube URL**: Enter the URL of the YouTube video.
-- **Start time in seconds**: Specify the start time of the segment to download (default is 0).
-- **End time in seconds**: Specify the end time of the segment to download (default is 60).
-- **Output directory**: Specify the directory to save the downloaded segment (default is 'output').
+## 🙏 Acknowledgements
 
-### Example
-
-To download a 60-second segment of a YouTube video starting at 30 seconds, you would set the parameters as follows:
-
-- **YouTube URL**: `https://www.youtube.com/watch?v=example`
-- **Start time in seconds**: 30
-- **End time in seconds**: 90
-- **Output directory**: `output`
-
-Then run the script to download and convert the segment:
-```
-python yt_video_downloader.py
-```
-
-The script will save the segment as an MP4 file in the specified output directory and ensure the file size is under 200 MB.
+- [Azure OpenAI](https://azure.microsoft.com/en-us/products/ai-services/openai-service/) for providing the powerful AI models
+- [Streamlit](https://streamlit.io/) for the simple web application framework
+- [OpenCV](https://opencv.org/) for video processing capabilities
